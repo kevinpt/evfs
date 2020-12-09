@@ -1,0 +1,1115 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EVFS library API &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Configuring EVFS" href="configure.html" />
+    <link rel="prev" title="EVFS" href="../../index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="evfs-library-api">
+<h1>EVFS library API<a class="headerlink" href="#evfs-library-api" title="Permalink to this headline">¶</a></h1>
+<p>The EVFS library has a number of sub-components that are described in the following sections:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="configure.html"><span class="doc">Configuring EVFS</span></a></p></li>
+<li><p><a class="reference internal" href="paths.html"><span class="doc">Path handling</span></a></p></li>
+<li><p><a class="reference internal" href="filesystems.html"><span class="doc">Filesystems</span></a></p></li>
+<li><p><a class="reference internal" href="shims.html"><span class="doc">Shims</span></a></p></li>
+</ul>
+<div class="section" id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
+<p>Your first task is to initialize EVFS with the set of filesystems and shims you want to use. This is described below in more detail but we’ll start with this skeleton:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/stdio_fs.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+
+  <span class="n">evfs_init</span><span class="p">();</span>
+  <span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+  <span class="p">...</span>
+</pre></div>
+</div>
+<p>From this point you have access to the C stdio filesystem using EVFS. You can perform filesystem level operations using the top level <a class="reference internal" href="#fs-access"><span class="std std-ref">filesystem access functions</span></a>. Among them are <a class="reference internal" href="#c.evfs_open_ex" title="evfs_open_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_ex()</span></code></a> and <a class="reference internal" href="#c.evfs_open_dir_ex" title="evfs_open_dir_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_dir_ex()</span></code></a> which create <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsFile</span></code> and <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsDir</span></code> objects respectively. These objects each have a set of methods for operating on the underlying <a class="reference internal" href="#file-methods"><span class="std std-ref">file</span></a> or <a class="reference internal" href="#dir-methods"><span class="std std-ref">directory</span></a>.</p>
+<p>Most of the library functions return an integer error code. Success is indicated by <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_OK</span></code> which is 0. Error conditions are always negative. Some functions will have additional positive values for non-error conditions. You can convert error codes into a string using <a class="reference internal" href="#c.evfs_err_name" title="evfs_err_name"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_err_name()</span></code></a>:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+<span class="kt">int</span> <span class="n">status</span> <span class="o">=</span> <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;foobar/test.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span>
+<span class="n">printf</span><span class="p">(</span><span class="s">&quot;evfs_open() returned &#39;%s&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">evfs_err_name</span><span class="p">(</span><span class="n">status</span><span class="p">));</span>
+</pre></div>
+</div>
+<div class="section" id="access-mode-flags">
+<h3>Access mode flags<a class="headerlink" href="#access-mode-flags" title="Permalink to this headline">¶</a></h3>
+<p>When you open a file you must supply a set of flags to identify what mode you want to open the file in. EVFS provides the following set of flags:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 74%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>EVFS_READ</p></td>
+<td><p>Open in read mode</p></td>
+</tr>
+<tr class="row-even"><td><p>EVFS_WRITE</p></td>
+<td><p>Open in write mode</p></td>
+</tr>
+<tr class="row-odd"><td><p>EVFS_RDWR</p></td>
+<td><p>Combination of EVFS_READ and EVFS_WRITE</p></td>
+</tr>
+<tr class="row-even"><td><p>EVFS_OPEN_OR_NEW</p></td>
+<td><p>Open an existing file or create a new one</p></td>
+</tr>
+<tr class="row-odd"><td><p>EVFS_NO_EXIST</p></td>
+<td><p>Do <em>not</em> open if the file exists</p></td>
+</tr>
+<tr class="row-even"><td><p>EVFS_OVERWRITE</p></td>
+<td><p>Truncate all existing file content</p></td>
+</tr>
+<tr class="row-odd"><td><p>EVFS_APPEND</p></td>
+<td><p>Append writes to the end of file</p></td>
+</tr>
+</tbody>
+</table>
+<p>These can be merged together in combination to achieve different results.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// Open a new file to write into</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;file.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_WRITE</span> <span class="o">|</span> <span class="n">EVFS_NO_EXIST</span><span class="p">);</span>
+
+<span class="c1">// Open file to append data and read back its content</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;file.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_RDWR</span> <span class="o">|</span> <span class="n">EVFS_APPEND</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Files are always opened in binary mode for every filesystem. There is no special handling of newline characters.</p>
+<p>To read and write from a file you need to have a buffer to hold the data going in or out. Reads and writes may be partial so you should be prepared to repeat an operation if necessary.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">status</span> <span class="o">=</span> <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;file.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_RDWR</span><span class="p">);</span>
+
+<span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+<span class="kt">int</span> <span class="n">read</span> <span class="o">=</span> <span class="n">evfs_file_read</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+<span class="k">if</span><span class="p">(</span><span class="n">read</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Read %d bytes from file</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">read</span><span class="p">);</span>
+
+<span class="n">evfs_file_rewind</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span> <span class="c1">// Go back to start of the file</span>
+
+<span class="kt">int</span> <span class="n">wrote</span> <span class="o">=</span> <span class="n">evfs_file_write</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+<span class="k">if</span><span class="p">(</span><span class="n">wrote</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Wrote %d bytes to file</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">wrote</span><span class="p">);</span>
+
+<span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="file-metadata">
+<h3>File metadata<a class="headerlink" href="#file-metadata" title="Permalink to this headline">¶</a></h3>
+<p>EVFS uses a common <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo"><code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsInfo</span></code></a> struct to work with file and directory metadata.</p>
+<dl class="c struct">
+<dt id="c.EvfsInfo">
+<em class="property">struct </em><code class="sig-name descname">EvfsInfo</code><a class="headerlink" href="#c.EvfsInfo" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Metadata for files and directories</p>
+<ul class="simple">
+<li><p><span class="xref c c-texpr">char</span>       *name - Name of a file or directory</p></li>
+<li><p><span class="xref c c-texpr">time_t</span>      mtime - Modification time</p></li>
+<li><p><span class="xref c c-texpr">evfs_off_t</span>  size  - File size</p></li>
+<li><p><span class="xref c c-texpr">uint8_t</span>     type  - Object type (file or directory)</p></li>
+</ul>
+</dd></dl>
+
+<p>These info structs are returned by <a class="reference internal" href="#c.evfs_stat_ex" title="evfs_stat_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_stat_ex()</span></code></a> and <a class="reference internal" href="#c.evfs_dir_read" title="evfs_dir_read"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_dir_read()</span></code></a>. Not all fields will be populated by these functions. Some data may be unavailable depending on the underlying filesystem. You can check which fields are valid by calling <a class="reference internal" href="#c.evfs_vfs_ctrl_ex" title="evfs_vfs_ctrl_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_vfs_ctrl_ex()</span></code></a> with the <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_GET_STAT_FIELDS</span></code> and <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_GET_DIR_FIELDS</span></code> commands. This will return a bitfield value where set bits correspond to the members of <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo"><code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsInfo</span></code></a> that are valid for the current VFS. Unused fields will always be 0.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// Query for supported stat fields</span>
+<span class="kt">unsigned</span> <span class="n">stat_fields</span><span class="p">;</span>
+<span class="n">evfs_vfs_ctrl_ex</span><span class="p">(</span><span class="n">EVFS_CMD_GET_STAT_FIELDS</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">stat_fields</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">);</span>
+
+<span class="c1">// Get stat</span>
+<span class="n">EvfsInfo</span> <span class="n">info</span><span class="p">;</span>
+<span class="n">evfs_stat_ex</span><span class="p">(</span><span class="s">&quot;/file.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">);</span>
+
+<span class="c1">// Check each supported field before access</span>
+
+<span class="c1">// Name is always present so this particular check isn&#39;t strictly required</span>
+<span class="k">if</span><span class="p">(</span><span class="n">stat_fields</span> <span class="o">&amp;</span> <span class="n">EVFS_INFO_NAME</span><span class="p">)</span>  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;File name is: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">info</span><span class="p">.</span><span class="n">name</span><span class="p">);</span>
+
+<span class="c1">// Mtime is missing on filesystems without time metadata and systems that don&#39;t</span>
+<span class="c1">// report time in directory listings.</span>
+<span class="k">if</span><span class="p">(</span><span class="n">stat_fields</span> <span class="o">&amp;</span> <span class="n">EVFS_INFO_MTIME</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">char</span> <span class="n">mtime</span><span class="p">[</span><span class="mi">30</span><span class="p">];</span>
+  <span class="n">ctime_r</span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">mtime</span><span class="p">,</span> <span class="n">mtime</span><span class="p">);</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Last modified: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">mtime</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="directory-listing">
+<h2>Directory listing<a class="headerlink" href="#directory-listing" title="Permalink to this headline">¶</a></h2>
+<p>Directories can be listed by opening a <code class="xref c c-type docutils literal notranslate"><span class="pre">EVfsDir</span></code> with <a class="reference internal" href="#c.evfs_open_dir_ex" title="evfs_open_dir_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_dir_ex()</span></code></a>. The <a class="reference internal" href="#dir-methods"><span class="std std-ref">directory access methods</span></a> are then used to scan through the contents of a directory. <a class="reference internal" href="#c.evfs_dir_read" title="evfs_dir_read"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_dir_read()</span></code></a> will return <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_DONE</span></code> when there are no more entries to read in a directory.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">EvfsDir</span> <span class="o">*</span><span class="n">dh</span><span class="p">;</span>
+<span class="n">evfs_open_dir</span><span class="p">(</span><span class="s">&quot;path/to/dir&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dh</span><span class="p">);</span>
+
+<span class="n">EvfsInfo</span> <span class="n">info</span><span class="p">;</span>
+<span class="kt">int</span> <span class="n">status</span> <span class="o">=</span> <span class="n">evfs_dir_read</span><span class="p">(</span><span class="n">dh</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">);</span>
+<span class="k">while</span><span class="p">(</span><span class="n">status</span> <span class="o">!=</span> <span class="n">EVFS_DONE</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Work with this entry</span>
+
+  <span class="p">...</span>
+
+  <span class="n">status</span> <span class="o">=</span> <span class="n">evfs_dir_read</span><span class="p">(</span><span class="n">dh</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">evfs_dir_close</span><span class="p">(</span><span class="n">dh</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Directory entries are returned in whatever order the underlying filesystem produces them. Some filesystems may add entries for the current (“.”) and parent (“..”) directories. These can be suppressed by configuring the VFS with an <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_SET_NO_DIR_DOTS</span></code> command:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="n">no_dots</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">evfs_vfs_ctrl</span><span class="p">(</span><span class="n">EVFS_CMD_SET_NO_DIR_DOTS</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">no_dots</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="evfs-architecture">
+<h2>EVFS architecture<a class="headerlink" href="#evfs-architecture" title="Permalink to this headline">¶</a></h2>
+<p>EVFS uses a design that takes inspiration from the SQLite VFS driver mechanism. You can register multiple <a class="reference internal" href="filesystems.html"><span class="doc">filesystem interfaces</span></a> and stack optional <a class="reference internal" href="shims.html"><span class="doc">shims</span></a> on top of them to alter behavior.</p>
+<div class="figure align-default">
+<img alt="../../_images/evfs_system.svg" src="../../_images/evfs_system.svg" /></div>
+<p>Every VFS interface or shim is assigned a name used to refer to the VFS object at a later time. File and directory handles are opened against one of these named VFS objects. Shims must be registered on top of an existing interface or another shim. One of the VFS objects is designated as the default. All API functions with the “_ex” suffix will target the default if the <code class="xref c c-var docutils literal notranslate"><span class="pre">vfs_name</span></code> argument is NULL.</p>
+<p>EVFS does not directly interact with storage media. You need to have the filesystem driver required to access your storage. The necessary driver code is provided by your operating system or an auxilliary library outside of EVFS.</p>
+</div>
+<div class="section" id="mounting-image-files">
+<h2>Mounting image files<a class="headerlink" href="#mounting-image-files" title="Permalink to this headline">¶</a></h2>
+<p>EVFS is capable of mounting filesystem images stored on a host filesystem and then accessing them as an independent VFS. To accomplish this you need to incorporate a filesystem driver into your application. This driver layer normally expects to interact with the storage device. You need to add an I/O adapter that translates low level storage operations into EVFS API calls on the opened image file. An EVFS filesystem interface is registered to the new filesystem driver. The EVFS API can then be used to access the contents of the image file as if it were a normal filesystem.</p>
+<div class="figure align-default">
+<img alt="../../_images/evfs_images.svg" src="../../_images/evfs_images.svg" /></div>
+<p>EVFS includes code that manages image files for the <a class="reference internal" href="filesystems.html#fatfs-fs"><span class="std std-ref">FatFs</span></a> and <a class="reference internal" href="filesystems.html#littlefs-fs"><span class="std std-ref">littlefs</span></a> filesystems.</p>
+</div>
+<div class="section" id="library-management">
+<span id="lib-mgmt"></span><h2>Library management<a class="headerlink" href="#library-management" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="#c.evfs_init" title="evfs_init"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_init()</span></code></a> function must be called before anything can be done with EVFS. This ensures initialization of internal data structures has been performed. When threading is enabled it also creates a library-wide lock to protect accesss to the data structures. If <a class="reference internal" href="configure.html#c.EVFS_USE_ATEXIT" title="EVFS_USE_ATEXIT"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_ATEXIT</span></code></a> is enabled in ‘evfs_config.h’, an <code class="xref c c-func docutils literal notranslate"><span class="pre">atexit()</span></code> handler will also be installed. If this isn’t enabled you must call <a class="reference internal" href="#c.evfs_unregister_all" title="evfs_unregister_all"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_unregister_all()</span></code></a> before the process exits to ensure that all VFSs have flushed their data and released any resources.</p>
+<p>The mechanism for adding a new VFS or shim is to use <a class="reference internal" href="#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>. Normally you will not call this directly but instead call a wrapper function provided by each VFS or shim driver. This function performs a secondary purpose of changing the default status of a VFS. If the VFS already exists, the <code class="xref c c-var docutils literal notranslate"><span class="pre">make_default</span></code> argument will change the VFS to the new default if true. If it is set false, another VFS will be found to serve as the new default.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span> <span class="c1">// Add a filesystem</span>
+<span class="c1">// stdio is now the default</span>
+
+<span class="n">evfs_register_trace</span><span class="p">(</span><span class="s">&quot;t_stdio&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="n">report</span><span class="p">,</span> <span class="n">stderr</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span> <span class="c1">// Add a debug tracing shim</span>
+<span class="c1">// Default is now the trace shim on top of stdio</span>
+
+
+<span class="c1">// Bypass the shim and make stdio the default again</span>
+<span class="n">Evfs</span> <span class="o">*</span><span class="n">stdio_vfs</span> <span class="o">=</span> <span class="n">evfs_find_vfs</span><span class="p">(</span><span class="s">&quot;stdio&quot;</span><span class="p">);</span>
+<span class="n">evfs_register</span><span class="p">(</span><span class="n">stdio_vfs</span><span class="p">,</span> <span class="cm">/*make_default*/</span> <span class="nb">true</span><span class="p">);</span>
+
+
+<span class="c1">// Remove default from stdio. &quot;t_stdio&quot; will become the new default.</span>
+<span class="n">evfs_register</span><span class="p">(</span><span class="n">stdio_vfs</span><span class="p">,</span> <span class="cm">/*make_default*/</span> <span class="nb">false</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>You can unregister a VFS or shim at runtime using <a class="reference internal" href="#c.evfs_unregister" title="evfs_unregister"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_unregister()</span></code></a>. You must ensure that no open file or directory handles exist that reference back to a VFS being unregistered. The library does not track this for you.</p>
+<dl class="c function">
+<dt id="c.evfs_init">
+void <code class="sig-name descname">evfs_init</code><span class="sig-paren">(</span>void<span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_init" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Initialize the EVFS library.</p>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_find_vfs">
+Evfs *<code class="sig-name descname">evfs_find_vfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_find_vfs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Search for a VFS by name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – VFS to search for</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The matching VFS object or NULL</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_vfs_name">
+<em class="property">const</em> char *<code class="sig-name descname">evfs_vfs_name</code><span class="sig-paren">(</span>Evfs *<em>vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_vfs_name" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the name of a VFS object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs</strong> – The VFS to get name from</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The name this VFS is registered under</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_default_vfs_name">
+<em class="property">const</em> char *<code class="sig-name descname">evfs_default_vfs_name</code><span class="sig-paren">(</span>void<span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_default_vfs_name" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the name of the default VFS object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The name of the default VFS</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_register">
+int <code class="sig-name descname">evfs_register</code><span class="sig-paren">(</span>Evfs *<em>vfs</em>, bool <em>make_default</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a new VFS or change the default status of an existing VFS.</p>
+<p>If the VFS has already been registered the make_default argument will
+update the status of this VFS. If there is only one registered VFS, make_default is ignored.</p>
+<p>This will fail if <a class="reference internal" href="#c.evfs_init" title="evfs_init"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_init()</span></code></a> hasn’t been called.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs</strong> – The new VFS to register</p></li>
+<li><p><strong>make_default</strong> – Set this VFS to be default or not</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_unregister">
+int <code class="sig-name descname">evfs_unregister</code><span class="sig-paren">(</span>Evfs *<em>vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_unregister" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unregister a VFS object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs</strong> – The VFS to remove</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_unregister_all">
+void <code class="sig-name descname">evfs_unregister_all</code><span class="sig-paren">(</span>void<span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_unregister_all" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unregister all registered VFS objects.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="filesystem-access">
+<span id="fs-access"></span><h2>Filesystem access<a class="headerlink" href="#filesystem-access" title="Permalink to this headline">¶</a></h2>
+<p>The top level of the EVFS API involves functions that directly interact with a VFS to perform operations. You can open, delete, rename, copy, and query for the status on files and directories. The <a class="reference internal" href="#c.evfs_open_ex" title="evfs_open_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_ex()</span></code></a> and <a class="reference internal" href="#c.evfs_open_dir_ex" title="evfs_open_dir_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_dir_ex()</span></code></a> functions return a handle that is used to perform further operations on those entities.</p>
+<p>Most of these functions have an “_ex” suffix indicating that their last parameter is an optional VFS name. All of these forms have a macro defined without the suffix that uses the default VFS. This is the same as passing NULL for the <code class="xref c c-var docutils literal notranslate"><span class="pre">vfs_name</span></code> argument to the “_ex” forms.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open_ex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">);</span> <span class="c1">// Open on named VFS</span>
+
+<span class="n">evfs_open_ex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>    <span class="c1">// Open on default VFS</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span>             <span class="c1">// Same as above using macro</span>
+</pre></div>
+</div>
+<p>There is a general purpose interface for passing named operations to the VFS via <a class="reference internal" href="#c.evfs_vfs_ctrl_ex" title="evfs_vfs_ctrl_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_vfs_ctrl_ex()</span></code></a>. It takes a command ID and a command specific argument to pass and return values that can alter or query internal VFS behavior. For example, you can use the <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_SET_READONLY</span></code> command to write protect a VFS from any EVFS functions. See the listing of commands in ‘evfs.h’ for what is available and the types they take as an argument.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="n">readonly</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">evfs_vfs_ctrl</span><span class="p">(</span><span class="n">EVFS_CMD_SET_READONLY</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">readonly</span><span class="p">);</span> <span class="c1">// Make the default VFS readonly</span>
+
+<span class="kt">unsigned</span> <span class="n">no_dots</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">evfs_vfs_ctrl</span><span class="p">(</span><span class="n">EVFS_CMD_SET_NO_DIR_DOTS</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">no_dots</span><span class="p">);</span> <span class="c1">// Strip &quot;.&quot; and &quot;..&quot; from the output of evfs_dir_read()</span>
+</pre></div>
+</div>
+<dl class="c function">
+<dt id="c.evfs_open_ex">
+int <code class="sig-name descname">evfs_open_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, EvfsFile **<em>fh</em>, int <em>flags</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_open_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Open a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the file</p></li>
+<li><p><strong>fh</strong> – Handle for successfully opened file</p></li>
+<li><p><strong>flags</strong> – Open mode flags</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_stat_ex">
+int <code class="sig-name descname">evfs_stat_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo">EvfsInfo</a> *<em>info</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_stat_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get file or directory status.</p>
+<p>Different VFS backends may only support a partial set of <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo"><code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsInfo</span></code></a> fields.
+Use the <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_GET_STAT_FIELDS</span></code> command with <a class="reference internal" href="#c.evfs_vfs_ctrl_ex" title="evfs_vfs_ctrl_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_vfs_ctrl_ex()</span></code></a> to query
+which fields are valid on a particular VFS. Unsupported fields will be 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the file</p></li>
+<li><p><strong>info</strong> – Information reported on the file</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_existing_file_ex">
+bool <code class="sig-name descname">evfs_existing_file_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_existing_file_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Test if a file exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the file</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true if the file exists</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_existing_dir_ex">
+bool <code class="sig-name descname">evfs_existing_dir_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_existing_dir_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Test if a directory exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true if the file exists</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_delete_ex">
+int <code class="sig-name descname">evfs_delete_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_delete_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Delete a file or directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the file</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_rename_ex">
+int <code class="sig-name descname">evfs_rename_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>old_path</em>, <em class="property">const</em> char *<em>new_path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_rename_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Rename a file or directory.</p>
+<p>No validation or transformation is made to the path arguments. Absolute paths
+should match the same parent directory or this is likely to fail.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>old_path</strong> – Filesystem path to existing file</p></li>
+<li><p><strong>new_path</strong> – New path to the file</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_make_dir_ex">
+int <code class="sig-name descname">evfs_make_dir_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_make_dir_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Make a new directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_make_path_ex">
+int <code class="sig-name descname">evfs_make_path_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_make_path_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Make a complete path to a nested directory.</p>
+<p>Any missing directories in the path will be created.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to a directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_make_path_range_ex">
+int <code class="sig-name descname">evfs_make_path_range_ex</code><span class="sig-paren">(</span>StringRange *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_make_path_range_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Make a complete path to a nested directory.</p>
+<p>Any missing directories in the path will be created.</p>
+<p>This variant takes a <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> object as the path. This allows the directory
+portion of a file path as generated by <a class="reference internal" href="paths.html#c.evfs_path_dirname_ex" title="evfs_path_dirname_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_dirname_ex()</span></code></a> to be referenced as
+a substring without making a copy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to a directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_open_dir_ex">
+int <code class="sig-name descname">evfs_open_dir_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, EvfsDir **<em>dh</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_open_dir_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Open a directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Filesystem path to the directory</p></li>
+<li><p><strong>dh</strong> – Handle for successfully opened directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_vfs_open_dir">
+int <code class="sig-name descname">evfs_vfs_open_dir</code><span class="sig-paren">(</span>Evfs *<em>vfs</em>, <em class="property">const</em> char *<em>path</em>, EvfsDir **<em>dh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_vfs_open_dir" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Open a directory from a VFS object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs</strong> – The VFS to open on</p></li>
+<li><p><strong>path</strong> – Filesystem path to the directory</p></li>
+<li><p><strong>dh</strong> – Handle for successfully opened directory</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_get_cur_dir_ex">
+int <code class="sig-name descname">evfs_get_cur_dir_ex</code><span class="sig-paren">(</span>StringRange *<em>cur_dir</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_get_cur_dir_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the current working directory for a VFS.</p>
+<p>Note that EVFS does not have any mechanism for handling DOS/Windows-style
+drive volumes. The reported working directory will be for the active volume.</p>
+<p>The returned <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> should not be modified as it may point into internal
+EVFS data structures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cur_dir</strong> – Reference to the current working directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_set_cur_dir_ex">
+int <code class="sig-name descname">evfs_set_cur_dir_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_set_cur_dir_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Set the current working directory for a VFS.</p>
+<p>Relative paths will be based in this directory until it is changed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to the new working directory</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_vfs_ctrl_ex">
+int <code class="sig-name descname">evfs_vfs_ctrl_ex</code><span class="sig-paren">(</span>int <em>cmd</em>, void *<em>arg</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_vfs_ctrl_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Generic configuration control for a VFS.</p>
+<p>See the definition of commands in evfs.h for the expected type to pass as arg.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cmd</strong> – Command number for the operation to perform</p></li>
+<li><p><strong>arg</strong> – Variable argument data to write or read associated with the command</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_copy_to_file_ex">
+int <code class="sig-name descname">evfs_copy_to_file_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>dest_path</em>, EvfsFile *<em>fh</em>, char *<em>buf</em>, size_t <em>buf_size</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_copy_to_file_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Copy contents of an open file to a new file.</p>
+<p>This allows you to transfer files across different VFSs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dest_path</strong> – Path to the new copy</p></li>
+<li><p><strong>fh</strong> – Open file to copy from</p></li>
+<li><p><strong>buf</strong> – Buffer to use for transfers. Use NULL to malloc a temp buffer.</p></li>
+<li><p><strong>buf_size</strong> – Size of buf array. When buf is NULL this is the size to allocate.</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="file-object-methods">
+<span id="file-methods"></span><h2>File object methods<a class="headerlink" href="#file-object-methods" title="Permalink to this headline">¶</a></h2>
+<p>All of the functions with an “evfs_file” prefix are methods of an <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsFile</span></code> object created by <a class="reference internal" href="#c.evfs_open_ex" title="evfs_open_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_ex()</span></code></a>.</p>
+<dl class="c function">
+<dt id="c.evfs_file_close">
+int <code class="sig-name descname">evfs_file_close</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_close" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Close a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to close</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_ctrl">
+int <code class="sig-name descname">evfs_file_ctrl</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, int <em>cmd</em>, void *<em>arg</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_ctrl" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Generic configuration control for a file object.</p>
+<p>See the definition of commands in evfs.h for the expected type to pass as arg.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to receive the command</p></li>
+<li><p><strong>cmd</strong> – Command number for the operation to perform</p></li>
+<li><p><strong>arg</strong> – Variable argument data to write or read associated with the command</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_read">
+size_t <code class="sig-name descname">evfs_file_read</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, void *<em>buf</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_read" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Read data from a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to read</p></li>
+<li><p><strong>buf</strong> – Buffer for read data</p></li>
+<li><p><strong>size</strong> – Size of buf</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of bytes read on success or negative error code on failure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_write">
+size_t <code class="sig-name descname">evfs_file_write</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, <em class="property">const</em> void *<em>buf</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_write" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Write data to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to write</p></li>
+<li><p><strong>buf</strong> – Buffer for write data</p></li>
+<li><p><strong>size</strong> – Size of buf</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of bytes written on success or negative error code on failure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_truncate">
+int <code class="sig-name descname">evfs_file_truncate</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, evfs_off_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_truncate" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Truncate the length of a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to truncate</p></li>
+<li><p><strong>size</strong> – New truncated size</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_sync">
+int <code class="sig-name descname">evfs_file_sync</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_sync" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Sync a file to the underlying filesystem.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to sync</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_size">
+evfs_off_t <code class="sig-name descname">evfs_file_size</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_size" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the size of a file.</p>
+<p>This will perform a sync to guarantee that intermediate write buffers
+are emptied before checking the size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to size up</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Size of the open file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_seek">
+int <code class="sig-name descname">evfs_file_seek</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, evfs_off_t <em>offset</em>, EvfsSeekDir <em>origin</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_seek" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Seek to a new offset in a file.</p>
+<p>Origin is one of the following:</p>
+<ul class="simple">
+<li><p>EVFS_SEEK_TO -  Absolute position from the start of the file</p></li>
+<li><p>EVFS_SEEK_REL -  Position relative to current file offset</p></li>
+<li><p>EVFS_SEEK_REV -  Position from the end of the file</p></li>
+</ul>
+<p>EVFS_SEEK_REL uses negative values to seek backward and positive
+to go forward. The other origin types use positive offset values.</p>
+<p>Use the <code class="xref c c-macro docutils literal notranslate"><span class="pre">evfs_file_rewind</span></code> macro to seek back to offset 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to seek on</p></li>
+<li><p><strong>offset</strong> – New position relative to the origin</p></li>
+<li><p><strong>origin</strong> – Start position for the seek</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_tell">
+evfs_off_t <code class="sig-name descname">evfs_file_tell</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_tell" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the current position within a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to report on</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Current offset into the file from the start</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_eof">
+bool <code class="sig-name descname">evfs_file_eof</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_eof" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Identify end of file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – The file to report on</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true if file is at the end</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="directory-object-methods">
+<span id="dir-methods"></span><h2>Directory object methods<a class="headerlink" href="#directory-object-methods" title="Permalink to this headline">¶</a></h2>
+<p>All of the functions with an “evfs_dir” prefix are methods of an <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsDir</span></code> object created by <a class="reference internal" href="#c.evfs_open_dir_ex" title="evfs_open_dir_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_open_dir_ex()</span></code></a>.</p>
+<dl class="c function">
+<dt id="c.evfs_dir_close">
+int <code class="sig-name descname">evfs_dir_close</code><span class="sig-paren">(</span>EvfsDir *<em>dh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_dir_close" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Close a directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dh</strong> – The directory to close</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_dir_read">
+int <code class="sig-name descname">evfs_dir_read</code><span class="sig-paren">(</span>EvfsDir *<em>dh</em>, <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo">EvfsInfo</a> *<em>info</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_dir_read" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Read the next directory entry.</p>
+<p>Different VFS backends may only support a partial set of <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo"><code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsInfo</span></code></a> fields.
+Use the <code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_GET_DIR_FIELDS</span></code> command with <a class="reference internal" href="#c.evfs_vfs_ctrl_ex" title="evfs_vfs_ctrl_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_vfs_ctrl_ex()</span></code></a> to query
+which fields are valid on a particular VFS. Unsupported fields will be 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dh</strong> – The directory to read from</p></li>
+<li><p><strong>info</strong> – Information reported on the file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success. EVFS_DONE when iteration is complete.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_dir_rewind">
+int <code class="sig-name descname">evfs_dir_rewind</code><span class="sig-paren">(</span>EvfsDir *<em>dh</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_dir_rewind" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Rewind a directory iterator to the beginning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dh</strong> – The directory to rewind</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_dir_find">
+int <code class="sig-name descname">evfs_dir_find</code><span class="sig-paren">(</span>EvfsDir *<em>dh</em>, <em class="property">const</em> char *<em>pattern</em>, <a class="reference internal" href="#c.EvfsInfo" title="EvfsInfo">EvfsInfo</a> *<em>info</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_dir_find" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Find a file matching a glob pattern.</p>
+<p>This scans a directory for a file until a match to pattern is found.
+Repeated calls will find the next file that matches the pattern.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dh</strong> – The directory to search</p></li>
+<li><p><strong>pattern</strong> – Glob pattern to be matched</p></li>
+<li><p><strong>info</strong> – Information reported on the file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success. EVFS_DONE when iteration is complete.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="miscellaneous">
+<h2>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Permalink to this headline">¶</a></h2>
+<dl class="c function">
+<dt id="c.evfs_err_name">
+<em class="property">const</em> char *<code class="sig-name descname">evfs_err_name</code><span class="sig-paren">(</span>int <em>err</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_err_name" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Translate an error code into a string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>err</strong> – EVFS error code</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The corresponding string or “&lt;unknown&gt;”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_cmd_name">
+<em class="property">const</em> char *<code class="sig-name descname">evfs_cmd_name</code><span class="sig-paren">(</span>int <em>cmd</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_cmd_name" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Translate an command code into a string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cmd</strong> – EVFS command code</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The corresponding string or “&lt;unknown&gt;”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_printf">
+int <code class="sig-name descname">evfs_file_printf</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, <em class="property">const</em> char *<em>fmt</em>, ...<span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_printf" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Print a formatted string to a file..</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – Open file to print into</p></li>
+<li><p><strong>fmt</strong> – Format string</p></li>
+<li><p><strong>args</strong> – Variable argument list</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of bytes written on success or negative error code on failure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_file_puts">
+int <code class="sig-name descname">evfs_file_puts</code><span class="sig-paren">(</span>EvfsFile *<em>fh</em>, <em class="property">const</em> char *<em>str</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_file_puts" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Write a string to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fh</strong> – Open file to print into</p></li>
+<li><p><strong>str</strong> – String to write</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Number of bytes written on success or negative error code on failure</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="../../index.html">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../../index.html" title="previous chapter">EVFS</a></li>
+      <li>Next: <a href="configure.html" title="next chapter">Configuring EVFS</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="../../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">EVFS library API</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a><ul>
+<li><a class="reference internal" href="#access-mode-flags">Access mode flags</a></li>
+<li><a class="reference internal" href="#file-metadata">File metadata</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#directory-listing">Directory listing</a></li>
+<li><a class="reference internal" href="#evfs-architecture">EVFS architecture</a></li>
+<li><a class="reference internal" href="#mounting-image-files">Mounting image files</a></li>
+<li><a class="reference internal" href="#library-management">Library management</a></li>
+<li><a class="reference internal" href="#filesystem-access">Filesystem access</a></li>
+<li><a class="reference internal" href="#file-object-methods">File object methods</a></li>
+<li><a class="reference internal" href="#directory-object-methods">Directory object methods</a></li>
+<li><a class="reference internal" href="#miscellaneous">Miscellaneous</a></li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="../../_sources/rst/api/library.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>

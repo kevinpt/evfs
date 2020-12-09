@@ -1,0 +1,418 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path handling &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="prev" title="Shims" href="shims.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="path-handling">
+<h1>Path handling<a class="headerlink" href="#path-handling" title="Permalink to this headline">¶</a></h1>
+<p>EVFS needs to be able to work with file and directory paths. The library provides functions to help you manipulate paths in an OS agnostic way. These are pure string manipulations and the referenced files and directories to not have to exist on any VFS. The operations allow you to extract portions of a path, join paths together, normalize them, and convert relative paths into absolute.</p>
+<p>The representation of absolute paths can vary between systems. In Unix derived systems a bare ‘/’ represents the root of the filesystem tree. On DOS/Windows systems this can be more elaborate with optional drive letters and other variants. To make path processing more universal, these functions work in conjunction with a method from each VFS that identifies the root component of a path and whether it is absolute. This portion of a path is left largely untouched by the EVFS library. Paths are passed through and validated by the underlying filesystem. Because of this behavior you will need at least one filesystem registered with EVFS before you can operate on paths. If you register multiple filesystems with different conventions for the root component you must ensure that the right VFS is referenced with its matching paths.</p>
+<div class="section" id="string-ranges">
+<h2>String ranges<a class="headerlink" href="#string-ranges" title="Permalink to this headline">¶</a></h2>
+<p>These functions frequently take a <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> or <code class="xref c c-type docutils literal notranslate"><span class="pre">AppendRange</span></code> struct as input and output parameters. These are part of small a string utility in ‘src/util/range_strings.c’. These structs represent a substring pointing into another string. <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> objects represent a substring that will not change bounds after a function call. <code class="xref c c-type docutils literal notranslate"><span class="pre">AppendRange</span></code> objects cover the empty space at the end of a string to append into. They have their start position advanced after. They have the same layout and only differ by the presence of const pointers in <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code>. These types can be casted back and forth as necessary.</p>
+<p>The general procedure for using these types is to prepare a storage area for a string, either a local array or one produced by dynamic allocation. You then initialize the <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> to cover the char array. This can be accomplished with a static initializer for true arrays or by calling <code class="xref c c-func docutils literal notranslate"><span class="pre">init_range()</span></code> with the start and size of the array when you have a pointer to allocated storage.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+<span class="n">StringRange</span> <span class="n">buf_r</span> <span class="o">=</span> <span class="n">RANGE_FROM_ARRAY</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span> <span class="c1">// Initializer can be used with array variables</span>
+
+<span class="kt">char</span> <span class="o">*</span><span class="n">buf2</span> <span class="o">=</span> <span class="n">evfs_malloc</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="n">StringRange</span> <span class="n">buf2_r</span><span class="p">;</span>
+<span class="n">init_range</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buf_2_r</span><span class="p">,</span> <span class="n">buf2</span><span class="p">,</span> <span class="mi">100</span><span class="p">);</span> <span class="c1">// Initialize pointers</span>
+
+<span class="kt">char</span> <span class="o">*</span><span class="n">str</span><span class="p">;</span> <span class="c1">// Unknown length</span>
+<span class="n">StringRange</span> <span class="n">str_r</span><span class="p">;</span>
+<span class="n">init_range</span><span class="p">(</span><span class="o">&amp;</span><span class="n">str_r</span><span class="p">,</span> <span class="n">str</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">str</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">);</span> <span class="c1">// When using strlen, add 1 to include the NUL</span>
+</pre></div>
+</div>
+<p>A substring pointed to by <code class="xref c c-type docutils literal notranslate"><span class="pre">StringRange</span></code> will not necessarily be NUL terminated. To print the substring using <code class="xref c c-func docutils literal notranslate"><span class="pre">printf()</span></code> formatted output, you use the “%.*s” specifier and the <code class="xref c c-macro docutils literal notranslate"><span class="pre">RANGE_FMT</span></code> macro:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">StringRange</span> <span class="o">*</span><span class="n">str</span><span class="p">;</span>
+
+<span class="n">printf</span><span class="p">(</span><span class="s">&quot;Substring in range is: &#39;%.*s&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">RANGE_FMT</span><span class="p">(</span><span class="n">str</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="path-api">
+<h2>Path API<a class="headerlink" href="#path-api" title="Permalink to this headline">¶</a></h2>
+<p>All of the functions that generate a new string from joining, normalization, or absolute conversion have been designed to safely overwrite their input string if it is also the output. This allows you to reuse an existing range and minimize the need for temporary buffers. These functions also avoid use of <code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_malloc()</span></code> whenever possible.</p>
+<p>Most of these functions have an “_ex” suffix indicating that their last parameter is an optional VFS name. All of these forms have a macro defined without the suffix that uses the default VFS.</p>
+<dl class="c function">
+<dt id="c.evfs_path_root_component_ex">
+bool <code class="sig-name descname">evfs_path_root_component_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>root</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_root_component_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the root portion of a path.</p>
+<p>This is a virtual method that calls into a VFS specific implementation to
+handle different filesystem path formats. On POSIX style systems the
+root component of absolute paths is a leading sequence of one or more ‘/’
+chars and nothing for relative paths. On DOS/Windows filesystems the root
+component may also have a colon separated volume letter or number on
+absolute or relative paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to extract root from</p></li>
+<li><p><strong>root</strong> – Substring of path corresponding to root or empty if none found</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true when the path is absolute</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_is_absolute_ex">
+bool <code class="sig-name descname">evfs_path_is_absolute_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_is_absolute_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Detect if a path is absolute on the supplied VFS.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to test</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true if path is absolute</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_basename">
+int <code class="sig-name descname">evfs_path_basename</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>tail</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_basename" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the file name portion of a path.</p>
+<p>This copies the behavior of Python os.path.basename().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to extract basename from</p></li>
+<li><p><strong>tail</strong> – Substring of path corresponding to the basename</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_extname">
+int <code class="sig-name descname">evfs_path_extname</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>ext</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_extname" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the extension of a file.</p>
+<p>This copies the behavior of Python os.path.splitext().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to extract extension from</p></li>
+<li><p><strong>ext</strong> – Substring of path corresponding to the extension</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_dirname_ex">
+int <code class="sig-name descname">evfs_path_dirname_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>head</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_dirname_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Get the directory portion of a path.</p>
+<p>This copies the behavior of Python os.path.dirname().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to extract dirname from</p></li>
+<li><p><strong>head</strong> – Substring of path corresponding to the dirname</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_join_ex">
+int <code class="sig-name descname">evfs_path_join_ex</code><span class="sig-paren">(</span>StringRange *<em>head</em>, StringRange *<em>tail</em>, StringRange *<em>joined</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_join_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Join two paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>head</strong> – Substring of left portion to join</p></li>
+<li><p><strong>tail</strong> – Substring of right portion to join</p></li>
+<li><p><strong>joined</strong> – Substring of output string. This can be the same as the head substring.</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_join_str_ex">
+int <code class="sig-name descname">evfs_path_join_str_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>head</em>, <em class="property">const</em> char *<em>tail</em>, StringRange *<em>joined</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_join_str_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Join two paths using char strings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>head</strong> – Substring of left portion to join</p></li>
+<li><p><strong>tail</strong> – Substring of right portion to join</p></li>
+<li><p><strong>joined</strong> – Substring of output string. This can be the same as the head path.</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_normalize_ex">
+int <code class="sig-name descname">evfs_path_normalize_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>normalized</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_normalize_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Normalize a path.</p>
+<p>This applies the following transformations:</p>
+<ul class="simple">
+<li><p>Any root component is reduced to its minimal form.</p></li>
+<li><p>Consecutive separators are merged into one</p></li>
+<li><p>All separators after root component are converted to EVFS_DIR_SEP</p></li>
+<li><p>“./” segments are removed</p></li>
+<li><p>“../” segments are removed with the preceeding segment</p></li>
+<li><p>Trailing slashes are removed</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to be normalized</p></li>
+<li><p><strong>normalized</strong> – Normalized output path. This can be the same string as path</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_path_absolute_ex">
+int <code class="sig-name descname">evfs_path_absolute_ex</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>path</em>, StringRange *<em>absolute</em>, <em class="property">const</em> char *<em>vfs_name</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_path_absolute_ex" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Convert a path to absolute form.</p>
+<p>If the path is already absolute it is normalized. Otherwise it is joined
+to the current working directory and normalized.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to become absolute</p></li>
+<li><p><strong>absolute</strong> – Absolute output path. This can be the same string as path</p></li>
+<li><p><strong>vfs_name</strong> – VFS to work on. Use default VFS if NULL</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_vfs_path_is_absolute">
+bool <code class="sig-name descname">evfs_vfs_path_is_absolute</code><span class="sig-paren">(</span>Evfs *<em>vfs</em>, <em class="property">const</em> char *<em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_vfs_path_is_absolute" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Detect if a path is absolute on the supplied VFS.</p>
+<p>This variant is for fs wrappers to use without a name lookup.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs</strong> – The VFS for the path</p></li>
+<li><p><strong>path</strong> – Path to test</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>true if path is absolute</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="../../index.html">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="shims.html" title="previous chapter">Shims</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="../../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Path handling</a><ul>
+<li><a class="reference internal" href="#string-ranges">String ranges</a></li>
+<li><a class="reference internal" href="#path-api">Path API</a></li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="../../_sources/rst/api/paths.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>

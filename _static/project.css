@@ -1,0 +1,194 @@
+
+@font-face {
+  font-family: 'Kreon';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Kreon Light'), local('Kreon-Light'), url('Kreon-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Kreon';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Kreon Regular'), local('Kreon-Regular'), url('Kreon-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Kreon';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Kreon Bold'), local('Kreon-Bold'), url('Kreon-Bold.woff2') format('woff2');
+}
+
+
+body {
+    font-size: medium;
+    background-color: white;
+    color: #000;
+    margin: 0;
+    padding: 0 1.1em 0 0;
+}
+
+div.document {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto 0 auto;
+    padding: 0 0em 0 1em;
+}
+
+pre, code {
+    font-size: small;
+}
+
+
+div.body h1,
+div.body h2,
+div.body h3,
+div.body h4 {
+    font-family: "Kreon", "goudy old style", "minion pro", "bell mt", Georgia, "Hiragino Mincho Pro", serif;
+}
+
+div.body h1,
+div.body h2 {
+    font-weight: bold;
+}
+
+div.sphinxsidebar p,
+div.sphinxsidebar span,
+div.sphinxsidebar h1,
+div.sphinxsidebar h2,
+div.sphinxsidebar h3,
+div.sphinxsidebar h4 {
+
+    font-family: "Kreon", "goudy old style", "minion pro", "bell mt", Georgia, "Hiragino Mincho Pro", serif;
+}
+
+table.docutils {
+    border-left: 1px solid #aaa;
+    border-right: 1px solid #aaa;
+    border-top: 2px solid #92a6c4;
+    border-bottom: 4px solid #92a6c4;
+    box-shadow: 2px 2px 4px #eee;
+    margin-bottom: 2em;
+}
+
+table.docutils td, table.docutils th {
+    border-style: none;
+    padding: 0.25em 0.7em;
+}
+
+table.docutils th {
+  border-bottom: 1px solid #92a6c4;
+}
+
+
+tt.descname {
+  font-size: 1.25em;
+}
+
+pre {
+  background: #E9ECF5;
+
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+dl.macro {
+  margin-top: 5em;
+}
+
+
+div.dl-button a, div.dl-button a:hover {
+  display: block;
+  height: 36px;
+  background: #008c00;
+
+  color: white;
+  font: 16px/36px Helvetica, Verdana, sans-serif;
+  text-decoration: none;
+  text-align: center;
+  text-transform: uppercase;
+
+  border: 4px solid white;
+  margin: 2px;
+
+  border-radius: 10px;
+
+  box-shadow: 0 2px 7px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+div.dl-button a:hover {
+  /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#008c00+0,007200+100 */
+  background: #008c00; /* Old browsers */
+  background: linear-gradient(to bottom,  #008c00 0%,#007200 100%); /* W3C */
+}
+
+p.caption {
+  font-family: "Kreon", "goudy old style", "minion pro", "bell mt", Georgia, "Hiragino Mincho Pro", serif;
+  font-size: medium;
+  font-weight: bold;
+}
+
+
+/***** Styling for C domain output *****/
+
+dl.c {
+  margin-top: 2em;
+  margin-bottom: 1em;
+}
+
+/* Border around whole param block */
+dl.c > dd {
+  /*margin-top: 1em;*/
+  border-left: 1px solid #aaa;
+  border-right: 1px solid #aaa;
+  border-top: 2px solid #92a6c4;
+  border-bottom: 4px solid #92a6c4;
+
+  padding: 0.5em;
+}
+
+/*
+dl.c dt {
+  margin-top: 1em;
+}
+*/
+
+/* Custom bullets on param list */
+dl.field-list li {
+  list-style-type: none;
+  position: relative;
+}
+
+dl.field-list li::before {
+  content: '\25b8';
+  padding-right: 1em;
+  color: #92a6c4;
+  position: absolute;
+  left: -1em;
+  font-size: 0.8rem;
+}
+
+dl.field-list > dd {
+  margin-bottom: 1em;
+}
+
+/* Margin below signature */
+dl.c > dt {
+  margin-bottom: 0.8em;
+}
+
+div.code-block-caption {
+  width:  50%;
+  margin: 0 auto;
+}
+
+span.caption-text {
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+span.c-texpr, code.c-expr {
+  font-weight: bold;
+}
+
+span.c-texpr {
+  font-size: 0.9rem;
+}

@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shims &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Path handling" href="paths.html" />
+    <link rel="prev" title="Filesystems" href="filesystems.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="shims">
+<h1>Shims<a class="headerlink" href="#shims" title="Permalink to this headline">¶</a></h1>
+<p>EVFS allows you to install shim VFS objects on top of existing filesystem interfaces or other shims. These intercept function calls passing through the shim and can change the apparent behavior of the underlying filesystem. Shims do not mask the underlying VFS object. They can still be accessed by their own name or can be set to be the new default VFS.</p>
+<div class="section" id="trace">
+<h2>Trace<a class="headerlink" href="#trace" title="Permalink to this headline">¶</a></h2>
+<p>The tracing shim adds debug output for EVFS operations. You register it with a callback function that will receive debug strings for console output. As EVFS is used, each function will generate diagnostic reports on what EVFS function is being called and its return value. This is useful for debugging new filesystem interfaces and shims. You can have multiple tracing shims interspersed within a stack of other shims and the bottom VFS. This allows you to see where errors are stemming from in the stack of VFSs.</p>
+<p>The output of the trace shim is colorized by default. Remove the <a class="reference internal" href="configure.html#c.EVFS_USE_ANSI_COLOR" title="EVFS_USE_ANSI_COLOR"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_ANSI_COLOR</span></code></a> define in ‘evfs_config.h’ to revert to plain text.</p>
+<dl class="c function">
+<dt id="c.evfs_register_trace">
+int <code class="sig-name descname">evfs_register_trace</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, <em class="property">const</em> char *<em>old_vfs_name</em>, int (*<em>report</em>)<span class="sig-paren">(</span><em class="property">const</em> char *buf, void *ctx<span class="sig-paren">)</span>, void *<em>ctx</em>, bool <em>default_vfs</em>, <span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_trace" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a tracing filesystem shim.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new shim</p></li>
+<li><p><strong>old_vfs_name</strong> – Existing VFS to wrap with shim</p></li>
+<li><p><strong>report</strong> – Callback function for trace output</p></li>
+<li><p><strong>ctx</strong> – User defined context for the report callback</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/shim/shim_trace.h&quot;</span><span class="cp"></span>
+
+<span class="c1">// Callback for trace shim</span>
+<span class="kt">int</span> <span class="nf">report</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">ctx</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">fputs</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="p">(</span><span class="kt">FILE</span> <span class="o">*</span><span class="p">)</span><span class="n">ctx</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">...</span>
+
+<span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">false</span><span class="p">);</span>
+<span class="n">evfs_register_trace</span><span class="p">(</span><span class="s">&quot;t_stdio&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="n">report</span><span class="p">,</span> <span class="n">stderr</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+<span class="c1">// The following operations will generate trace output</span>
+
+<span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;/file.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span>
+
+<span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="jail">
+<h2>Jail<a class="headerlink" href="#jail" title="Permalink to this headline">¶</a></h2>
+<p>The jail shim treats a designated directory as the root of a jailed VFS. You can work with absolute paths within the jail that map to this base directory on the real filesystem. The jail keeps its own concept of the current directory so that relative paths can be used within the jailed VFS.</p>
+<dl class="c function">
+<dt id="c.evfs_register_jail">
+int <code class="sig-name descname">evfs_register_jail</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, <em class="property">const</em> char *<em>old_vfs_name</em>, <em class="property">const</em> char *<em>jail_root</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_jail" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a jail filesystem shim.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new shim</p></li>
+<li><p><strong>old_vfs_name</strong> – Existing VFS to wrap with shim</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/shim/shim_jail.h&quot;</span><span class="cp"></span>
+
+<span class="p">...</span>
+
+<span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">false</span><span class="p">);</span>
+<span class="n">evfs_register_jail</span><span class="p">(</span><span class="s">&quot;my_jail&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="s">&quot;/home/user/testing&quot;</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+<span class="c1">// my_jail VFS root maps to /home/user/testing</span>
+
+<span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;/etc/passwd&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_WRITE</span><span class="p">);</span>
+
+<span class="n">evfs_make_dir</span><span class="p">(</span><span class="s">&quot;/lib/foo&quot;</span><span class="p">);</span>
+<span class="n">evfs_make_dir</span><span class="p">(</span><span class="s">&quot;../foo&quot;</span><span class="p">);</span>  <span class="c1">// Normalizes to &quot;/foo&quot; within the jail</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rotate">
+<h2>Rotate<a class="headerlink" href="#rotate" title="Permalink to this headline">¶</a></h2>
+<p>The rotate shim implements virtual self-rotating files useful for logging data.
+Older file contents are gradually purged once the log file reaches its
+maximum size.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Do not use this for important data. There are latent race
+conditions that can cause data loss.</p>
+</div>
+<p>The virtual files are represented as a container directory in the underlying
+filesystem. When the container is accessed through this shim it will appear as a single
+continuous file of data. You can perform all normal file operations on an
+open file handle. Understand that as rotation happens the offsets of the
+file contents will change. You should not access a container simultaneously
+through multiple file handles as they will not be synchronized. Use append
+mode writes to add data to the end of the file.</p>
+<p>The initial container configuration settings are passed to
+<a class="reference internal" href="#c.evfs_register_rotate" title="evfs_register_rotate"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_rotate()</span></code></a> when the shim is installed. If you need to change the
+settings you can send a new <a class="reference internal" href="#c.RotateConfig" title="RotateConfig"><code class="xref c c-struct docutils literal notranslate"><span class="pre">RotateConfig</span></code></a> struct to the shim using the
+<code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_CMD_SET_ROTATE_CFG</span></code> as the operation <a class="reference internal" href="library.html#c.evfs_vfs_ctrl_ex" title="evfs_vfs_ctrl_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_vfs_ctrl_ex()</span></code></a>.</p>
+<p>Rotation will leave portions of data spanning the chunk boundary at the new
+start of the file. For text files, the first line will be missing an initial
+portion. You can trim off this first fragmentary line by scanning for the
+newline. With binary data you have to be prepared to lose a portion of a record
+unless you always write a fixed record size that is an integral factor of the
+chunk size. Otherwise you will need to have some form or synchronizing
+information stored periodically so you can skip past the truncated data
+remaining at the start of the file.</p>
+<dl class="c struct">
+<dt id="c.RotateConfig">
+<em class="property">struct </em><code class="sig-name descname">RotateConfig</code><a class="headerlink" href="#c.RotateConfig" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Configuration settings for the rotate shim</p>
+<ul class="simple">
+<li><p><span class="xref c c-texpr">uint32_t</span> chunk_size     - Size of each chunk</p></li>
+<li><p><span class="xref c c-texpr">uint32_t</span> max_chunks     - Maximum chunks in the file container</p></li>
+<li><p><span class="xref c c-texpr">bool</span>     repair_corrupt - Repair corrupted containers</p></li>
+</ul>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_register_rotate">
+int <code class="sig-name descname">evfs_register_rotate</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, <em class="property">const</em> char *<em>old_vfs_name</em>, <a class="reference internal" href="#c.RotateConfig" title="RotateConfig">RotateConfig</a> *<em>cfg</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_rotate" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a rotate filesystem shim.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new shim</p></li>
+<li><p><strong>old_vfs_name</strong> – Existing VFS to wrap with shim</p></li>
+<li><p><strong>cfg</strong> – Configuration settings for new containers</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/shim/shim_rotate.h&quot;</span><span class="cp"></span>
+
+<span class="p">...</span>
+
+<span class="c1">// Log file will have 100 chunks of 50KiB for a max capacity of 5MiB.</span>
+<span class="n">RotateConfig</span> <span class="n">cfg</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="p">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="mi">50</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>
+  <span class="p">.</span><span class="n">max_chunks</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+  <span class="p">.</span><span class="n">repair_corrupt</span> <span class="o">=</span> <span class="nb">true</span>
+<span class="p">};</span>
+
+<span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+<span class="n">evfs_register_jail</span><span class="p">(</span><span class="s">&quot;rotate&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cfg</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">false</span><span class="p">);</span>
+
+<span class="c1">// Open a container. This is a directory that appears to be a file</span>
+<span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open_ex</span><span class="p">(</span><span class="s">&quot;log.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_WRITE</span> <span class="o">|</span> <span class="n">EVFS_CREATE_OR_NEW</span><span class="o">|</span> <span class="n">EVFS_APPEND</span><span class="p">,</span> <span class="s">&quot;rotate&quot;</span><span class="p">);</span>
+
+<span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+
+<span class="p">...</span>
+
+<span class="n">evfs_file_write</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span> <span class="c1">// Write to rotating log</span>
+
+<span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="section" id="implementation">
+<h3>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h3>
+<p>The container directory contains a configuration file recording the
+geometry settings the container was created with and multiple chunk files
+that contain segments of the file’s data. Chunks have a fixed size and there
+is a maximum number of chunks set on creation. You can have no more than
+99999 chunks. The minimum chunk size is limited to 32 bytes to protect against
+excessive filesystem activity. Normally this should be a few kilobytes or larger
+depending on your system’s needs and capabilities.</p>
+<p>The chunking algorithm is designed to work on systems that don’t record
+timestamps. When a container is opened the chunks are scanned to find the
+start and end of the sequence. This requires that single gap is present
+in the chunk number sequence. If there are multiple gaps in the sequence,
+these two end points can’t be unambiguously identified and the container is
+unusable. There is an optional repair procedure that will drop enough chunks
+to restore a valid sequence. This should be unlikely to happen if you only
+write to the container in append mode. If you perform random access writes in
+the middle of the file there is a risk of a chunk disappearing or becoming zero
+length if a system fault happens.</p>
+<p>The rotation process only involves deleting the oldest chunk at the start of
+the file. This minimizes the amount of filesystem activity on flash based
+filesystems.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="../../index.html">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="filesystems.html" title="previous chapter">Filesystems</a></li>
+      <li>Next: <a href="paths.html" title="next chapter">Path handling</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="../../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Shims</a><ul>
+<li><a class="reference internal" href="#trace">Trace</a></li>
+<li><a class="reference internal" href="#jail">Jail</a></li>
+<li><a class="reference internal" href="#rotate">Rotate</a><ul>
+<li><a class="reference internal" href="#implementation">Implementation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="../../_sources/rst/api/shims.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>

@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configuring EVFS &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Filesystems" href="filesystems.html" />
+    <link rel="prev" title="EVFS library API" href="library.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="configuring-evfs">
+<h1>Configuring EVFS<a class="headerlink" href="#configuring-evfs" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="evfs-config-h">
+<h2>evfs_config.h<a class="headerlink" href="#evfs-config-h" title="Permalink to this headline">¶</a></h2>
+<p>The EVFS library is built with compile time configuration settings in ‘evfs_config.h’. The defaults are set up to work in a typical PC environment. For embedded targets you will need modify features like the thread support settings.</p>
+<div class="section" id="debug-settings">
+<h3>Debug settings<a class="headerlink" href="#debug-settings" title="Permalink to this headline">¶</a></h3>
+<dl class="c macro">
+<dt id="c.EVFS_DEBUG">
+<code class="sig-name descname">EVFS_DEBUG</code><a class="headerlink" href="#c.EVFS_DEBUG" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Define this to enable debugging of EVFS. Set it to 1 to enable and 0 to disable debugging. If it is undefined, EVFS debugging will be active unless <code class="xref c c-macro docutils literal notranslate"><span class="pre">NDEBUG</span></code> is defined.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_ASSERT_LEVEL">
+<code class="sig-name descname">EVFS_ASSERT_LEVEL</code><a class="headerlink" href="#c.EVFS_ASSERT_LEVEL" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>This sets the debug levels for the library’s internel <code class="xref c c-macro docutils literal notranslate"><span class="pre">ASSERT()</span></code> macro. It should be set to one of the following values:</p>
+<ul class="simple">
+<li><p>0 - Ignore assertion</p></li>
+<li><p>1 - Silent assertion check with no stderr output</p></li>
+<li><p>2 - Check assertion with stderr output</p></li>
+<li><p>3 - Check assertion with stderr output and call <code class="xref c c-func docutils literal notranslate"><span class="pre">abort()</span></code> when EVFS_DEBUG == 1, otherwise silent check</p></li>
+</ul>
+</dd></dl>
+
+</div>
+<div class="section" id="path-handling">
+<h3>Path handling<a class="headerlink" href="#path-handling" title="Permalink to this headline">¶</a></h3>
+<dl class="c macro">
+<dt id="c.EVFS_PATH_SEPS">
+<code class="sig-name descname">EVFS_PATH_SEPS</code><a class="headerlink" href="#c.EVFS_PATH_SEPS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>This is a string of all characters recognized as a path separator. Default is “\/”.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_DIR_SEP">
+<code class="sig-name descname">EVFS_DIR_SEP</code><a class="headerlink" href="#c.EVFS_DIR_SEP" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>This is the character used as separator in normalized paths. Default is ‘/’.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_MAX_PATH">
+<code class="sig-name descname">EVFS_MAX_PATH</code><a class="headerlink" href="#c.EVFS_MAX_PATH" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Set the maximum allowed length for path strings. The affects the sizing of internal buffers. Default is 256. On memory constrained targets it may be necessary to reduce this.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.ALLOW_LONG_PATHS">
+<code class="sig-name descname">ALLOW_LONG_PATHS</code><a class="headerlink" href="#c.ALLOW_LONG_PATHS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Allow paths that exceed <a class="reference internal" href="#c.EVFS_MAX_PATH" title="EVFS_MAX_PATH"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_MAX_PATH</span></code></a> from <a class="reference internal" href="paths.html#c.evfs_path_join_ex" title="evfs_path_join_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_join_ex()</span></code></a> and <a class="reference internal" href="paths.html#c.evfs_path_absolute_ex" title="evfs_path_absolute_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_absolute_ex()</span></code></a>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="thread-support">
+<h3>Thread support<a class="headerlink" href="#thread-support" title="Permalink to this headline">¶</a></h3>
+<p>Threading support is provided for the C11 and pthreads APIs. If you are targeting another platform like an RTOS it is necessary to write wrapper functions that expose the required locking functionality to EVFS. See ‘evfs_c11_thread.c’ for an example of the required wrappers. You will also have to add a section to ‘evfs_custom_threading.h’ that provides a typedef for <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsLock</span></code> and defines any <code class="xref c c-macro docutils literal notranslate"><span class="pre">LOCK_INITIALIZER</span></code> macro.</p>
+<dl class="c macro">
+<dt id="c.EVFS_USE_THREADING">
+<code class="sig-name descname">EVFS_USE_THREADING</code><a class="headerlink" href="#c.EVFS_USE_THREADING" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Enable use on multi-threaded or multi-tasking targets. EVFS uses shared data structures that need to be protected with locks in these envronments. You will need to select the threading API that EVFS will work with.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_C11_THREADS">
+<code class="sig-name descname">EVFS_USE_C11_THREADS</code><a class="headerlink" href="#c.EVFS_USE_C11_THREADS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Use the C11 threading API.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_PTHREADS">
+<code class="sig-name descname">EVFS_USE_PTHREADS</code><a class="headerlink" href="#c.EVFS_USE_PTHREADS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Use the pthreads API.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="library-behavior">
+<h3>Library behavior<a class="headerlink" href="#library-behavior" title="Permalink to this headline">¶</a></h3>
+<dl class="c macro">
+<dt id="c.EVFS_FILE_OFFSET_BITS">
+<code class="sig-name descname">EVFS_FILE_OFFSET_BITS</code><a class="headerlink" href="#c.EVFS_FILE_OFFSET_BITS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Set the number of bits in <code class="xref c c-type docutils literal notranslate"><span class="pre">evfs_off_t</span></code> used to handle file sizes and offsets. It defaults to 32-bits. Set this to 64 to enable 64-bit support. This will be necessary if you need to work with files larger than 2GiB.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_ATEXIT">
+<code class="sig-name descname">EVFS_USE_ATEXIT</code><a class="headerlink" href="#c.EVFS_USE_ATEXIT" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Install an <code class="xref c c-func docutils literal notranslate"><span class="pre">atexit()</span></code> handler to shutdown the EVFS library when the process exits. Disable this if you are on an embedded platform where <code class="xref c c-func docutils literal notranslate"><span class="pre">atexit()</span></code> will not be called. If this is disabled you should always terminate by calling <a class="reference internal" href="library.html#c.evfs_unregister_all" title="evfs_unregister_all"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_unregister_all()</span></code></a> so that VFSs have the opportunity to flush data and release resources.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_ANSI_COLOR">
+<code class="sig-name descname">EVFS_USE_ANSI_COLOR</code><a class="headerlink" href="#c.EVFS_USE_ANSI_COLOR" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Use ANSI color for diagnostic debug output. This is useful for dealing with the output from the trace shim. Disable this if your debug console can’t support color.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="vfs-options">
+<h3>VFS options<a class="headerlink" href="#vfs-options" title="Permalink to this headline">¶</a></h3>
+<p>These are options spcific to various filesystems and shims</p>
+<dl class="c macro">
+<dt id="c.EVFS_USE_STDIO_POSIX">
+<code class="sig-name descname">EVFS_USE_STDIO_POSIX</code><a class="headerlink" href="#c.EVFS_USE_STDIO_POSIX" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Enable POSIX API calls for the Stdio filesystem driver. The Stdio driver will have reduced functionality without this defined.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_LITTLEFS_SHARED_BUFFER">
+<code class="sig-name descname">EVFS_USE_LITTLEFS_SHARED_BUFFER</code><a class="headerlink" href="#c.EVFS_USE_LITTLEFS_SHARED_BUFFER" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Save memory by using a common shared buffer in the littlefs driver.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.EVFS_USE_ROTATE_SHARED_BUFFER">
+<code class="sig-name descname">EVFS_USE_ROTATE_SHARED_BUFFER</code><a class="headerlink" href="#c.EVFS_USE_ROTATE_SHARED_BUFFER" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Save memory by using a common shared buffer in the rotate shim driver.</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="../../index.html">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="library.html" title="previous chapter">EVFS library API</a></li>
+      <li>Next: <a href="filesystems.html" title="next chapter">Filesystems</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="../../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Configuring EVFS</a><ul>
+<li><a class="reference internal" href="#evfs-config-h">evfs_config.h</a><ul>
+<li><a class="reference internal" href="#debug-settings">Debug settings</a></li>
+<li><a class="reference internal" href="#path-handling">Path handling</a></li>
+<li><a class="reference internal" href="#thread-support">Thread support</a></li>
+<li><a class="reference internal" href="#library-behavior">Library behavior</a></li>
+<li><a class="reference internal" href="#vfs-options">VFS options</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="../../_sources/rst/api/configure.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>

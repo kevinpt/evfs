@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EVFS &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="EVFS library API" href="rst/api/library.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="evfs">
+<h1>EVFS<a class="headerlink" href="#evfs" title="Permalink to this headline">¶</a></h1>
+<p><em>Embedded Virtual Filesystem</em></p>
+<p>EVFS is a lightweight filesystem API geared toward embedded applications though it can also be useful in systems programming. It provides a common interface that wraps multiple backend filesystems.</p>
+<p>EVFS allows you to easily port your application code between diferent platforms. Once EVFS is established, all code using its API will work without any additional porting efort. This can enable you to develop embedded code on a conventional OS for testing and evaluation and then use the same code on an embedded system.</p>
+<p>The EVFS library is inspired by the VFS system used in SQLite but implements a more general purpose file and directory access API. You can register multiple <a class="reference internal" href="rst/api/filesystems.html"><span class="doc">filesystem interfaces</span></a> and stack optional <a class="reference internal" href="rst/api/shims.html"><span class="doc">shims</span></a> on top of them to alter behavior.</p>
+<div class="figure align-default" id="id1">
+<img alt="_images/evfs_system.svg" src="_images/evfs_system.svg" /><p class="caption"><span class="caption-text">EVFS architecture</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+<p>EVFS comes with filesystem interface wrappers that support C stdio, <a class="reference external" href="http://elm-chan.org/fsw/ff/00index_e.html">FatFs</a>,
+and <a class="reference external" href="https://github.com/littlefs-project/littlefs">littlefs</a> as the backend filesystems. Vendored copies of FatFs and Littlefs have been included for ease of development but you can use your own instances of these libraries as needed. FatFs and Littlefs image files can be mounted on top of any other EVFS filesystem. This allows you to develop on a PC and work with data in the same filesystem as the target application.</p>
+<p>See the <a class="reference internal" href="rst/api/library.html"><span class="doc">EVFS library reference</span></a> for detailed documentation.</p>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>EVFS is a C library that can be incorporated into other projects. It requires a compiler that supports C11. Although, if necessary, it can be downgraded to C99 with minimal changes. CMake build scripts are provided for generating test and demo programs. This requires at least CMake 3.13.</p>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>EVFS comes with a CMake build script to prepare a library and test programs on a PC. If you are targeting an embedded environment you will need to adapt this to your build system. After downloading the source you configure CMake to generate a makefile. Use the <strong class="command">make install</strong> target to install the generated libraries on your system:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; <span class="nb">cd</span> evfs
+&gt; cmake -DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="si">${</span><span class="nv">INSTALL_PATH</span><span class="si">}</span> -DCMAKE_BUILD_TYPE<span class="o">=</span>Release .
+&gt; make install
+</pre></div>
+</div>
+<p>Change the build type if you want to enable debug builds:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; cmake -DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="si">${</span><span class="nv">INSTALL_PATH</span><span class="si">}</span> -DCMAKE_BUILD_TYPE<span class="o">=</span>Debug .
+</pre></div>
+</div>
+</div>
+<div class="section" id="testing">
+<h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
+<p>There are optional test programs included with EVFS. The more interesting is “test_image” which demonstrates how to access filesystem images. It can use either FatFs or littlefs for the image file depending on a command line option.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; make test_image
+&gt; ./test_image -h
+
+EVFS image demo
+
+Usage: test_image <span class="o">[</span>-f fatfs<span class="p">|</span>littlefs<span class="o">]</span> <span class="o">[</span>-t<span class="o">]</span> <span class="o">[</span>-h<span class="o">]</span>
+  -f &lt;fs&gt;     <span class="k">select</span> filesystem <span class="k">for</span> image
+  -t          show EVFS tracing
+  -h          display this <span class="nb">help</span> and <span class="nb">exit</span>
+</pre></div>
+</div>
+<p>After repeated runs the “/boot.bin” file within the image will increment a count to show that data is persistent.</p>
+</div>
+<div class="section" id="download">
+<h2>Download<a class="headerlink" href="#download" title="Permalink to this headline">¶</a></h2>
+<p>You can access the EVFS Git repository from <a class="reference external" href="https://github.com/kevinpt/evfs">Github</a>.</p>
+</div>
+<div class="section" id="licensing">
+<h2>Licensing<a class="headerlink" href="#licensing" title="Permalink to this headline">¶</a></h2>
+<p>EVFS is licensed for free commercial and non-commercial use under the terms of the MIT license.</p>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="#">
+              <img class="logo" src="_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="#">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div id="download_links">
+  <div class="js-clone-url clone-url open" data-protocol-type="http">
+    <span>Git clone URL:</span>
+    <div>
+      <input type="text" value="https://github.com/kevinpt/evfs.git"
+             onclick="this.focus();this.select()" readonly="readonly" aria-label="Git clone URL">
+    </div>
+  </div>
+  <br>
+</div><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="rst/api/library.html" title="next chapter">EVFS library API</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="#">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">EVFS</a><ul>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#testing">Testing</a></li>
+<li><a class="reference internal" href="#download">Download</a></li>
+<li><a class="reference internal" href="#licensing">Licensing</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>

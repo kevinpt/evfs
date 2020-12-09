@@ -1,0 +1,474 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Filesystems &#8212; EVFS 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Shims" href="shims.html" />
+    <link rel="prev" title="Configuring EVFS" href="configure.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="filesystems">
+<h1>Filesystems<a class="headerlink" href="#filesystems" title="Permalink to this headline">¶</a></h1>
+<p>EVFS supports multiple filesystem interface backends. In addition to system level file access via C stdio and POSIX calls, the library can access
+FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. Each filesystem has a registration function that wraps <a class="reference internal" href="library.html#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>, adding the necessary arguments for configuration and constructing dynamic structures.</p>
+<div class="section" id="stdio">
+<h2>Stdio<a class="headerlink" href="#stdio" title="Permalink to this headline">¶</a></h2>
+<p>EVFS implements a special “stdio” filesystem which uses the C file access API. Essentially everything that works with a <span class="xref c c-texpr">FILE*</span>. Directory operations are not supported by the C standard library so POSIX API calls are used for those features. If your target system does not support POSIX you can undefine <a class="reference internal" href="configure.html#c.EVFS_USE_STDIO_POSIX" title="EVFS_USE_STDIO_POSIX"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_STDIO_POSIX</span></code></a> in ‘evfs_config.h’ and work with limited functionality. There is only one “stdio” filesystem per process so you just need to register this once for all common file I/O.</p>
+<dl class="c function">
+<dt id="c.evfs_register_stdio">
+int <code class="sig-name descname">evfs_register_stdio</code><span class="sig-paren">(</span>bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_stdio" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a stdio instance.</p>
+<p>This VFS is always named “stdio”. There should only be one instance per application.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="fatfs">
+<span id="fatfs-fs"></span><h2>FatFs<a class="headerlink" href="#fatfs" title="Permalink to this headline">¶</a></h2>
+<p>To access a <a class="reference external" href="http://elm-chan.org/fsw/ff/00index_e.html">FatFs</a> filesystem you need to call <a class="reference internal" href="#c.evfs_register_fatfs" title="evfs_register_fatfs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_fatfs()</span></code></a> with the FatFs volume number. Because FatFs uses global state to track its
+filesystems you need to handle configuring storage access through its ‘disk_*()’ callback functions. The callbacks don’t need to be functioning before registration.</p>
+<dl class="c function">
+<dt id="c.evfs_register_fatfs">
+int <code class="sig-name descname">evfs_register_fatfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, uint8_t <em>pdrv</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_fatfs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a new FatFs instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>pdrv</strong> – FatFs volume number</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>A FatFs filesystem stored in an image file can be mounted using the helper functions in ‘fatfs_image.c’. The following functions will let you mount an image. The provided FatFs callback methods will need to be customized if additional volumes need to be mounted at the same time.</p>
+<dl class="c function">
+<dt id="c.fatfs_make_image">
+int <code class="sig-name descname">fatfs_make_image</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>img_path</em>, uint8_t <em>pdrv</em>, evfs_off_t <em>img_size</em><span class="sig-paren">)</span><a class="headerlink" href="#c.fatfs_make_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Make a FatFs image file if it doesn’t exist.</p>
+<p>If a new image is created it will be formatted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img_path</strong> – Path to the image file</p></li>
+<li><p><strong>pdrv</strong> – Any unused FatFs volume number</p></li>
+<li><p><strong>img_size</strong> – Size of the image to generate</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.fatfs_mount_image">
+int <code class="sig-name descname">fatfs_mount_image</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>img_path</em>, uint8_t <em>pdrv</em><span class="sig-paren">)</span><a class="headerlink" href="#c.fatfs_mount_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Mount a FatFs image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img_path</strong> – Path to the image file</p></li>
+<li><p><strong>pdrv</strong> – FatFs volume number where this image will be mounted</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.fatfs_unmount_image">
+void <code class="sig-name descname">fatfs_unmount_image</code><span class="sig-paren">(</span>uint8_t <em>pdrv</em><span class="sig-paren">)</span><a class="headerlink" href="#c.fatfs_unmount_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unmount a FatFs image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pdrv</strong> – FatFs volume number where this image is mounted</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p>If you need a new image, one can be prepared using <a class="reference internal" href="#c.fatfs_make_image" title="fatfs_make_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_make_image()</span></code></a>. This will not alter an existing image file. When the image is ready you mount it within FatFs using <a class="reference internal" href="#c.fatfs_mount_image" title="fatfs_mount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_mount_image()</span></code></a>. At this point the image is associated with a FatFs volume number. You can then register a FatFs instance using that volume number. The contents of the image can then be read and modified as usual using the EVFS API. When done with the image you should unmount it within FatFs using <a class="reference internal" href="#c.fatfs_unmount_image" title="fatfs_unmount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_unmount_image()</span></code></a>.</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">Using a FatFs image file</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/stdio_fs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/fatfs_fs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;ff.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/fatfs_image.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">evfs_init</span><span class="p">();</span>
+
+  <span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+  <span class="c1">// &lt;&lt;Configure FatFs volume handling via callbacks&gt;&gt;</span>
+  <span class="kt">int</span> <span class="n">pdrv</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c1">// FatFs volume number</span>
+  <span class="n">fatfs_make_image</span><span class="p">(</span><span class="s">&quot;fatfs.img&quot;</span><span class="p">,</span> <span class="n">pdrv</span><span class="p">,</span> <span class="mi">512</span><span class="o">*</span><span class="mi">1024</span><span class="p">);</span> <span class="c1">// No effect if image exists</span>
+  <span class="n">fatfs_mount_image</span><span class="p">(</span><span class="s">&quot;fatfs.img&quot;</span><span class="p">,</span> <span class="n">pdrv</span><span class="p">);</span>          <span class="c1">// Image stored on base filesystem</span>
+
+  <span class="c1">// Add FatFs as default VFS</span>
+  <span class="n">evfs_register_fatfs</span><span class="p">(</span><span class="s">&quot;vol0&quot;</span><span class="p">,</span> <span class="n">pdrv</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+  <span class="c1">// Access the image like a normal fielsystem</span>
+
+  <span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+  <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;hello.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_WRITE</span> <span class="o">|</span> <span class="n">EVFS_OVERWRITE</span><span class="p">);</span>
+
+  <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+  <span class="n">sprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="s">&quot;Hello, world</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+  <span class="n">evfs_file_write</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+
+  <span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+
+  <span class="n">fatfs_unmount_image</span><span class="p">(</span><span class="n">pdrv</span><span class="p">);</span>
+
+  <span class="n">evfs_unregister_all</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="littlefs">
+<span id="littlefs-fs"></span><h2>littlefs<a class="headerlink" href="#littlefs" title="Permalink to this headline">¶</a></h2>
+<p>Use <a class="reference internal" href="#c.evfs_register_littlefs" title="evfs_register_littlefs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_littlefs()</span></code></a> to access a <a class="reference external" href="https://github.com/littlefs-project/littlefs">littlefs</a> filesystem. Littlefs keeps track of filesystem state through an <code class="xref c c-type docutils literal notranslate"><span class="pre">lfs_t</span></code> struct. It is easy to attach multiple littlefs volumes with their own EVFS filesystem name. Each one can be registered as an independent VFS.</p>
+<dl class="c function">
+<dt id="c.evfs_register_littlefs">
+int <code class="sig-name descname">evfs_register_littlefs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, lfs_t *<em>lfs</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_littlefs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a Littlefs instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>lfs</strong> – Mounted littlefs object</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>A littlefs filesystem stored in an image file can be mounted using the helper functions in ‘littlefs_image.c’. The following functions will let you mount an image. The provided littlefs callback methods can be used as is. Wear leveling has no useful purpose in an image file stored on another filesystem. The <code class="xref c c-type docutils literal notranslate"><span class="pre">lfs_config</span></code> struct should have its <code class="xref c c-var docutils literal notranslate"><span class="pre">block_cycles</span></code> member set to -1 to disable this feature.</p>
+<dl class="c function">
+<dt id="c.littlefs_make_image">
+int <code class="sig-name descname">littlefs_make_image</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>img_path</em>, <em class="property">struct</em> lfs_config *<em>cfg</em><span class="sig-paren">)</span><a class="headerlink" href="#c.littlefs_make_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Make a Littlefs image file if it doesn’t exist.</p>
+<p>Image geometry is taken from the configuration data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img_path</strong> – Path to the image file</p></li>
+<li><p><strong>cfg</strong> – Configuration struct for the Littlefs this is mounted on</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.littlefs_mount_image">
+int <code class="sig-name descname">littlefs_mount_image</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>img_path</em>, <em class="property">struct</em> lfs_config *<em>cfg</em>, lfs_t *<em>lfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.littlefs_mount_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Mount a Littlefs image</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img_path</strong> – Path to the image file</p></li>
+<li><p><strong>cfg</strong> – Configuration struct for the Littlefs this is mounted on</p></li>
+<li><p><strong>lfs</strong> – Littlefs filesystem object to mount onto</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.littlefs_unmount_image">
+void <code class="sig-name descname">littlefs_unmount_image</code><span class="sig-paren">(</span>lfs_t *<em>lfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.littlefs_unmount_image" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unmount a Littlefs image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lfs</strong> – Mounted Littlefs filesystem object</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Image handling functions are similar to those for FatFs. All callback functions are supplied in the <code class="xref c c-type docutils literal notranslate"><span class="pre">lfs_config</span></code> struct.</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Using a littlefs image file</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/stdio_fs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/littlefs_fs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;lfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/littlefs_image.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">lfs_t</span> <span class="n">lfs</span><span class="p">;</span>
+  <span class="n">LittlefsImage</span> <span class="n">s_lfs_img</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+
+  <span class="cp">#define KB  *1024UL</span>
+  <span class="cp">#define LFS_VOL_SIZE   (512 KB)</span>
+  <span class="cp">#define LFS_BLOCK_SIZE  4096</span>
+
+  <span class="k">struct</span> <span class="nc">lfs_config</span> <span class="n">s_lfs_cfg</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="c1">// Must have a valid LittlefsImage object for context data</span>
+      <span class="p">.</span><span class="n">context</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">s_lfs_img</span><span class="p">,</span>
+
+      <span class="c1">// Block device operations</span>
+      <span class="p">.</span><span class="n">read</span>  <span class="o">=</span> <span class="n">littlefs_image_read</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">prog</span>  <span class="o">=</span> <span class="n">littlefs_image_prog</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">erase</span> <span class="o">=</span> <span class="n">littlefs_image_erase</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">sync</span>  <span class="o">=</span> <span class="n">littlefs_image_sync</span><span class="p">,</span>
+
+      <span class="c1">// Block device configuration</span>
+      <span class="p">.</span><span class="n">read_size</span>      <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">prog_size</span>      <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">block_size</span>     <span class="o">=</span> <span class="n">LFS_BLOCK_SIZE</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">block_count</span>    <span class="o">=</span> <span class="n">LFS_VOL_SIZE</span> <span class="o">/</span> <span class="n">LFS_BLOCK_SIZE</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">cache_size</span>     <span class="o">=</span> <span class="mi">1024</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">lookahead_size</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+      <span class="p">.</span><span class="n">block_cycles</span>   <span class="o">=</span> <span class="mi">-1</span><span class="p">,</span> <span class="c1">// Disable wear leveling  // 500,</span>
+  <span class="p">};</span>
+
+
+  <span class="n">evfs_init</span><span class="p">();</span>
+
+  <span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+  <span class="n">littlefs_make_image</span><span class="p">(</span><span class="s">&quot;littlefs.img&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">s_lfs_cfg</span><span class="p">);</span>        <span class="c1">// No effect if image exists</span>
+  <span class="n">littlefs_mount_image</span><span class="p">(</span><span class="s">&quot;littlefs.img&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">s_lfs_cfg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">lfs</span><span class="p">);</span> <span class="c1">// Image stored on base filesystem</span>
+
+  <span class="c1">// Add littlefs as default VFS</span>
+  <span class="n">evfs_register_littlefs</span><span class="p">(</span><span class="s">&quot;lfs&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">lfs</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
+
+  <span class="c1">// Access the image like a normal fielsystem</span>
+
+  <span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
+  <span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;hello.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_WRITE</span> <span class="o">|</span> <span class="n">EVFS_OVERWRITE</span><span class="p">);</span>
+
+  <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+  <span class="n">sprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="s">&quot;Hello, world</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+  <span class="n">evfs_file_write</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+
+  <span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+
+  <span class="n">littlefs_unmount_image</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lfs</span><span class="p">);</span>
+
+  <span class="n">evfs_unregister_all</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/evfs.png" alt="Logo"/>
+            </a></p>
+<h1 class="logo"><a href="../../index.html">EVFS</a></h1>
+
+
+
+<p class="blurb">Embedded Virtual Filesystem</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=kevinpt&repo=evfs&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="configure.html" title="previous chapter">Configuring EVFS</a></li>
+      <li>Next: <a href="shims.html" title="next chapter">Shims</a></li>
+  </ul></li>
+</ul>
+</div>
+  <h3><a href="../../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Filesystems</a><ul>
+<li><a class="reference internal" href="#stdio">Stdio</a></li>
+<li><a class="reference internal" href="#fatfs">FatFs</a></li>
+<li><a class="reference internal" href="#littlefs">littlefs</a></li>
+</ul>
+</li>
+</ul>
+<h3>Other projects</h3>
+
+<div id="proj_list">
+<p>
+<a href="http://kevinpt.github.io/opbasm/">Opbasm</a><br>
+<a href="http://kevinpt.github.io/ripyl/">Ripyl</a><br>
+<a href="http://code.google.com/p/vhdl-extras">Vhdl-extras</a><br>
+</p>
+</div>
+
+<script>
+$(function() { // Retrieve list of repositories from Github and dynamically insert them into sidebar
+
+if(!window.sessionStorage || !JSON) { return; } // Punt on crusty browsers (looking at you IE10)
+
+function JSONP( url, callback ) {
+	var id = ( 'jsonp' + Math.random() * new Date() ).replace('.', '');
+	var script = document.createElement('script');
+	script.src = url.replace( 'callback=?', 'callback=' + id );
+	document.body.appendChild( script );
+	window[ id ] = function( data ) {
+		if (callback) {
+			callback( data );
+		}
+	};
+}
+
+// Build dictionary indexing lower cased project names with their preferred format
+var knownProjects = ["VHDL-extras", "Ripyl", "VerTcl", "LeCroy-colorizer", "Opbasm"];
+var projectDict = {};
+$.each(knownProjects, function(index, v) {
+  projectDict[v.toLowerCase()] = v;
+});
+
+function insert_projects(projects) {
+    var links = [];
+    var cur_proj = "EVFS".toLowerCase();
+    
+    $.each(projects, function(key, value) {
+      if(key != cur_proj) {
+        var title;
+        if(key in projectDict) {
+          title = projectDict[key];
+        } else { // Capitalize first char
+          title = key.replace(/^./, function(match) {return match.toUpperCase()});
+        }
+        links.push("<a href='"+ value +"'>" + title + "</a>");
+      }
+    });
+    
+    $("#proj_list").html("<p>"+ links.join("<br>") +"</p>");
+}
+
+var now = new Date().getTime();
+if(sessionStorage.KTcacheTime && now - sessionStorage.KTcacheTime < 5*60*1000 ) { // Use cached values (5 min. expiry)
+  insert_projects(JSON.parse(sessionStorage.KTprojects));
+} else { // Retrieve current projects
+  JSONP("https://api.github.com/users/kevinpt/repos?type=owner&callback=?", function(response) {
+    var projects = {};
+    $.each(response.data, function(index, value) {
+      if(!value.fork)
+        projects[value.name] = value.homepage;
+    });
+    
+    insert_projects(projects);
+    
+    // Store data in session cache
+    sessionStorage.KTprojects = JSON.stringify(projects);
+    var now = new Date().getTime();
+    sessionStorage.KTcacheTime = now;
+  });  
+}
+
+});
+</script>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+
+    <div class="footer">
+      &copy;2020, Kevin Thibedeau.
+      
+      |
+      <a href="../../_sources/rst/api/filesystems.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+
+
+
+  </body>
+</html>
