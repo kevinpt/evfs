@@ -19,7 +19,7 @@ evaluation and then use the same code on an embedded system.
 The EVFS library is inspired by the VFS system used in SQLite but implements a more
 general purpose file and directory access API. You can register multiple `filesystem
 interfaces <https://kevinpt.github.io/evfs/rst/api/filesystems.html>`_ and stack optional
-`shims <http://kevinpt.github.io/evfs/rst/api/shims.html>`_ on top of them to alter
+`shims <https://kevinpt.github.io/evfs/rst/api/shims.html>`_ on top of them to alter
 behavior.
 
 .. figure:: doc/images/evfs_system.svg
