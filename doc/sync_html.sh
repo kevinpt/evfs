@@ -1,3 +1,3 @@
 #!/bin/sh
 
-rsync -r --delete --prune-empty-dirs -v _build/html/ $1
+rsync -r --delete --exclude=.git --prune-empty-dirs -v _build/html/ $1
