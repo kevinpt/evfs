@@ -1,3 +1,18 @@
+/* SPDX-License-Identifier: MIT
+Copyright 2020 Kevin Thibedeau
+(kevin 'period' thibedeau 'at' gmail 'punto' com)
+
+See LICENSE in the EVFS project root for details
+*/
+
+/*
+------------------------------------------------------------------------------
+Embedded Virtual Filesystem
+
+  Configuration for thread API
+------------------------------------------------------------------------------
+*/
+
 #ifndef EVFS_CUSTOM_THREADING_H
 #define EVFS_CUSTOM_THREADING_H
 

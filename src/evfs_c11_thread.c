@@ -1,3 +1,17 @@
+/* SPDX-License-Identifier: MIT
+Copyright 2020 Kevin Thibedeau
+(kevin 'period' thibedeau 'at' gmail 'punto' com)
+
+See LICENSE in the EVFS project root for details
+*/
+
+/*
+------------------------------------------------------------------------------
+Embedded Virtual Filesystem
+
+  Thread wrappers for C11 threads
+------------------------------------------------------------------------------
+*/
 
 #include "evfs.h"
 #include "evfs_internal.h"

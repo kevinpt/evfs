@@ -1,3 +1,11 @@
+/* SPDX-License-Identifier: MIT
+Copyright 2020 Kevin Thibedeau
+(kevin 'period' thibedeau 'at' gmail 'punto' com)
+
+See LICENSE in the EVFS project root for details
+*/
+
+
 #ifndef SHIM_ROTATE_H
 #define SHIM_ROTATE_H
 

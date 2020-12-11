@@ -22,6 +22,16 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+/*
+------------------------------------------------------------------------------
+getopt_r
+
+This is a reentrant implementation of getopt(). It operates similarly to
+standard getopt() with the addition of a state struct to avoid global state.
+The argc argument is not used in this version.
+------------------------------------------------------------------------------
+*/
+
 #ifndef GETOPT_R_H
 #define GETOPT_R_H
 
