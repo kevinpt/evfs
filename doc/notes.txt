@@ -1,0 +1,22 @@
+
+
+# Create gh-pages branch
+git checkout --orphan gh-pages
+git reset --hard
+git commit --allow-empty -m "Start gh-pages"
+git push origin gh-pages
+git checkout main
+
+
+# Checkout new copy of branch
+git clone <URL> project-doc
+git checkout gh-pages
+
+
+# Update branch
+
+rsync -r --delete --prune-empty-dirs -v _build/html/ ${branch}
+
+git commit -m "Update docs"
+git push origin gh-pages
+
