@@ -111,7 +111,7 @@ mode writes to add data to the end of the file.
 The initial container configuration settings are passed to
 :c:func:`evfs_register_rotate` when the shim is installed. If you need to change the
 settings you can send a new :c:struct:`RotateConfig` struct to the shim using the 
-:c:macro:`EVFS_CMD_SET_ROTATE_CFG` as the operation :c:func:`evfs_vfs_ctrl_ex`.
+:c:macro:`EVFS_CMD_SET_ROTATE_CFG` as the operation in a call to :c:func:`evfs_vfs_ctrl_ex`.
 
 Rotation will leave portions of data spanning the chunk boundary at the new
 start of the file. For text files, the first line will be missing an initial
@@ -187,14 +187,15 @@ depending on your system's needs and capabilities.
 
 The chunking algorithm is designed to work on systems that don't record
 timestamps. When a container is opened the chunks are scanned to find the
-start and end of the sequence. This requires that single gap is present
+start and end of the sequence. This requires that a single gap is present
 in the chunk number sequence. If there are multiple gaps in the sequence,
 these two end points can't be unambiguously identified and the container is
 unusable. There is an optional repair procedure that will drop enough chunks
 to restore a valid sequence. This should be unlikely to happen if you only
-write to the container in append mode. If you perform random access writes in
-the middle of the file there is a risk of a chunk disappearing or becoming zero
-length if a system fault happens.
+write to the container in append mode. Set :c:var:`repair_corrupt` to ``true``
+in the configuration struct to activate repairs when opening a container.
+If you perform random access writes in the middle of the file there is a risk of
+a chunk disappearing or becoming zero length if a system fault happens.
 
 The rotation process only involves deleting the oldest chunk at the start of
 the file. This minimizes the amount of filesystem activity on flash based
