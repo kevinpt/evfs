@@ -254,43 +254,94 @@ void evfs_unregister_all(void);
 
 // ******************** FS access methods ********************
 int evfs_open_ex(const char *path, EvfsFile **fh, int flags, const char *vfs_name);
-#define evfs_open(path, fh, flags) evfs_open_ex(path, fh, flags, NULL)
+
+static inline int evfs_open(const char *path, EvfsFile **fh, int flags) {
+  return evfs_open_ex(path, fh, flags, NULL);
+}
+//#define evfs_open(path, fh, flags) evfs_open_ex(path, fh, flags, NULL)
 
 int evfs_stat_ex(const char *path, EvfsInfo *info, const char *vfs_name);
-#define evfs_stat(path, info) evfs_stat_ex(path, info, NULL)
+
+static inline int evfs_stat(const char *path, EvfsInfo *info) {
+  return evfs_stat_ex(path, info, NULL);
+}
 
 bool evfs_existing_file_ex(const char *path, const char *vfs_name);
-#define evfs_existing_file(path) evfs_existing_file_ex(path, NULL)
+
+static inline bool evfs_existing_file(const char *path) {
+  return evfs_existing_file_ex(path, NULL);
+}
+
 
 bool evfs_existing_dir_ex(const char *path, const char *vfs_name);
-#define evfs_existing_dir(path) evfs_existing_dir_ex(path, NULL)
+
+static inline bool evfs_existing_dir(const char *path) {
+  return evfs_existing_dir_ex(path, NULL);
+}
+
 
 int evfs_delete_ex(const char *path, const char *vfs_name);
-#define evfs_delete(path) evfs_delete_ex(path, NULL)
+
+static inline int evfs_delete(const char *path) {
+  return evfs_delete_ex(path, NULL);
+}
+
 
 int evfs_make_dir_ex(const char *path, const char *vfs_name);
-#define evfs_make_dir(path) evfs_make_dir_ex(path, NULL)
+
+static inline int evfs_make_dir(const char *path) {
+  return evfs_make_dir_ex(path, NULL);
+}
+
 
 int evfs_make_path_ex(const char *path, const char *vfs_name);
-#define evfs_make_path(path) evfs_make_path_ex(path, NULL)
+
+static inline int evfs_make_path(const char *path) {
+  return evfs_make_path_ex(path, NULL);
+}
+
 
 int evfs_make_path_range_ex(StringRange *path, const char *vfs_name);
-#define evfs_make_path_range(path) evfs_make_path_range_ex(path, NULL)
+
+static inline int evfs_make_path_range(StringRange *path) {
+  return evfs_make_path_range_ex(path, NULL);
+}
+
 
 int evfs_open_dir_ex(const char *path, EvfsDir **dh, const char *vfs_name);
-#define evfs_open_dir(path, dh) evfs_open_dir_ex(path, dh, NULL)
+
+static inline int evfs_open_dir(const char *path, EvfsDir **dh) {
+  return evfs_open_dir_ex(path, dh, NULL);
+}
+
 
 int evfs_get_cur_dir_ex(StringRange *cur_dir, const char *vfs_name);
-#define evfs_get_cur_dir(cur_dir) evfs_get_cur_dir_ex(cur_dir, NULL)
+
+static inline int evfs_get_cur_dir(StringRange *cur_dir) {
+  return evfs_get_cur_dir_ex(cur_dir, NULL);
+}
+
 
 int evfs_set_cur_dir_ex(const char *path, const char *vfs_name);
-#define evfs_set_cur_dir(path) evfs_set_cur_dir_ex(path, NULL)
+
+static inline int evfs_set_cur_dir(const char *path) {
+  return evfs_set_cur_dir_ex(path, NULL);
+}
+
 
 int evfs_vfs_ctrl_ex(int op, void *arg, const char *vfs_name);
-#define evfs_vfs_ctrl(op, arg) evfs_vfs_ctrl_ex(op, arg, NULL)
+
+static inline int evfs_vfs_ctrl(int op, void *arg) {
+  return evfs_vfs_ctrl_ex(op, arg, NULL);
+}
+
 
 int evfs_copy_to_file_ex(const char *dest_path, EvfsFile *fh, char *buf, size_t buf_size, const char *vfs_name);
-#define evfs_copy_to_file(dest_path, fh) evfs_copy_to_file_ex(dest_path, fh, NULL, 0, NULL)
+
+static inline int evfs_copy_to_file(const char *dest_path, EvfsFile *fh, char *buf, size_t buf_size) {
+  return evfs_copy_to_file_ex(dest_path, fh, NULL, 0, NULL);
+}
+
 
 int evfs_vfs_open(Evfs *vfs, const char *path, EvfsFile **fh, int flags);
 int evfs_vfs_open_dir(Evfs *vfs, const char *path, EvfsDir **dh);
@@ -298,29 +349,56 @@ int evfs_vfs_open_dir(Evfs *vfs, const char *path, EvfsDir **dh);
 
 // ******************** Path operations ********************
 bool evfs_path_root_component_ex(const char *path, StringRange *root, const char *vfs_name);
-#define evfs_path_root_component(path, root) evfs_path_root_component_ex(path, root, NULL)
+
+static inline bool evfs_path_root_component(const char *path, StringRange *root) {
+  return evfs_path_root_component_ex(path, root, NULL);
+}
+
 
 int evfs_path_basename(const char *path, StringRange *tail);
 
 int evfs_path_dirname_ex(const char *path, StringRange *head, const char *vfs_name);
-#define evfs_path_dirname(path, head) evfs_path_dirname_ex(path, head, NULL)
+
+static inline int evfs_path_dirname(const char *path, StringRange *head) {
+  return evfs_path_dirname_ex(path, head, NULL);
+}
+
 
 int evfs_path_join_ex(StringRange *head, StringRange *tail, StringRange *joined, const char *vfs_name);
-#define evfs_path_join(head, tail, joined) evfs_path_join_ex(head, tail, joined, NULL)
+
+static inline int evfs_path_join(StringRange *head, StringRange *tail, StringRange *joined) {
+  return evfs_path_join_ex(head, tail, joined, NULL);
+}
+
 
 int evfs_path_join_str_ex(const char *head, const char *tail, StringRange *joined, const char *vfs_name);
-#define evfs_path_join_str(head, tail, joined) evfs_path_join_str_ex(head, tail, joined, NULL)
+
+static inline int evfs_path_join_str(const char *head, const char *tail, StringRange *joined) {
+  return evfs_path_join_str_ex(head, tail, joined, NULL);
+}
+
 
 int evfs_path_extname(const char *path, StringRange *ext);
 
 int evfs_path_normalize_ex(const char *path, StringRange *normalized, const char *vfs_name);
-#define evfs_path_normalize(path, normalized) evfs_path_normalize_ex(path, normalized, NULL)
+
+static inline int evfs_path_normalize(const char *path, StringRange *normalized) {
+  return evfs_path_normalize_ex(path, normalized, NULL);
+}
+
 
 int evfs_path_absolute_ex(const char *path, StringRange *absolute, const char *vfs_name);
-#define evfs_path_absolute(path, absolute) evfs_path_absolute_ex(path, absolute, NULL)
+
+static inline int evfs_path_absolute(const char *path, StringRange *absolute) {
+  return evfs_path_absolute_ex(path, absolute, NULL);
+}
+
 
 bool evfs_path_is_absolute_ex(const char *path, const char *vfs_name);
-#define evfs_path_is_absolute(path) evfs_path_is_absolute_ex(path, NULL);
+static inline bool evfs_path_is_absolute(const char *path) {
+  return evfs_path_is_absolute_ex(path, NULL);
+}
+
 
 // Non-virtual path operations with direct VFS access
 int evfs_vfs_path_basename(Evfs *vfs, const char *path, StringRange *tail);
@@ -342,7 +420,11 @@ int evfs_file_truncate(EvfsFile *fh, evfs_off_t size);
 int evfs_file_sync(EvfsFile *fh);
 evfs_off_t evfs_file_size(EvfsFile *fh);
 int evfs_file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin);
-#define evfs_file_rewind(fh)  evfs_file_seek(fh, 0, EVFS_SEEK_TO);
+
+static inline int evfs_file_rewind(EvfsFile *fh) {
+  return evfs_file_seek(fh, 0, EVFS_SEEK_TO);
+}
+
 evfs_off_t evfs_file_tell(EvfsFile *fh);
 bool evfs_file_eof(EvfsFile *fh);
 
