@@ -124,14 +124,13 @@ Returns:
 */
 int evfs_path_extname(const char *path, StringRange *ext) {
   if(PTR_CHECK(path) || PTR_CHECK(ext)) return EVFS_ERR_BAD_ARG;
-  const char *pos;
 
   // Get the file name
   evfs_path_basename(path, ext);
+  const char *pos = ext->end;
 
   if(range_size(ext) > 0) {
     // Scan back for first period
-    pos = ext->end;
     while(pos > ext->start) {
       if(*pos == '.')
         break;
