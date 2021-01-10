@@ -28,6 +28,7 @@ set(EVFS_LIB_SOURCE
   shim_rotate.c
   util/glob.c
   util/range_strings.c
+  stdio_fs.c
 )
 
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
@@ -144,4 +145,12 @@ PRIVATE
 
 
 
-install(TARGETS evfs evfs_so DESTINATION lib)
+install(TARGETS evfs evfs_so
+  DESTINATION "lib"
+)
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" # source directory
+        DESTINATION "include" # target directory
+        FILES_MATCHING # install only matched files
+        PATTERN "*.h" # select header files
+)

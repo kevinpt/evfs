@@ -241,7 +241,6 @@ int evfs_open_ex(const char *path, EvfsFile **fh, int flags, const char *vfs_nam
 static inline int evfs_open(const char *path, EvfsFile **fh, int flags) {
   return evfs_open_ex(path, fh, flags, NULL);
 }
-//#define evfs_open(path, fh, flags) evfs_open_ex(path, fh, flags, NULL)
 
 int evfs_stat_ex(const char *path, EvfsInfo *info, const char *vfs_name);
 
