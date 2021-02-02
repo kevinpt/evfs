@@ -72,7 +72,7 @@ int fatfs_make_image(const char *img_path, uint8_t pdrv, evfs_off_t img_size) {
       char drive_path[3];
       char buf[FF_MAX_SS*4];
 
-      snprintf(drive_path, 2, "%d", pdrv);
+      snprintf(drive_path, 2, "%hhu", pdrv);
 
       FRESULT err = f_mkfs(drive_path, NULL, buf, COUNT_OF(buf));
       status = (err == FR_OK) ? EVFS_OK : EVFS_ERR;
@@ -111,7 +111,7 @@ int fatfs_mount_image(const char *img_path, uint8_t pdrv) {
 
 
   char drive_path[3];
-  snprintf(drive_path, 2, "%d", pdrv);
+  snprintf(drive_path, 2, "%hhu", pdrv);
 
   FRESULT err = f_mount(&img->fs, drive_path, 1);
   status = (err == FR_OK) ? EVFS_OK : EVFS_ERR;
@@ -135,7 +135,7 @@ void fatfs_unmount_image(uint8_t pdrv) {
   FatfsImage *img = get_image_data(pdrv);
 
   char drive_path[3];
-  snprintf(drive_path, 2, "%d", pdrv);
+  snprintf(drive_path, 2, "%hhu", pdrv);
   f_unmount(drive_path);
 
   evfs_file_close(img->fh);

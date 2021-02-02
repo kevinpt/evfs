@@ -22,8 +22,22 @@ Embedded Virtual Filesystem
 #include <stdlib.h>
 #include <stddef.h>
 
+#include "evfs/evfs_build_config.h"
 #include "evfs_config.h"
 #include "evfs/util/range_strings.h"
+
+
+// ******************** Threading support ********************
+#undef EVFS_USE_THREADING
+#if defined USE_C11_THREADS || defined USE_PTHREADS
+#  define EVFS_USE_THREADING
+#  if defined USE_C11_THREADS && defined USE_PTHREADS
+#    undef USE_PTHREADS
+#  endif
+#endif
+
+
+
 
 
 typedef struct Evfs_s Evfs;

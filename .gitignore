@@ -58,3 +58,4 @@ CMakeFiles
 *.img
 
 _build
+evfs_build_config.h

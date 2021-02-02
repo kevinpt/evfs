@@ -45,22 +45,6 @@ Embedded Virtual Filesystem
 
 
 
-// ******************** Thread support ********************
-
-// Use threading library to implement locks on shared resources
-#define EVFS_USE_THREADING
-
-#ifdef EVFS_USE_THREADING
-// Select the threading API to use:
-
-// Use C11 thread API
-#  define EVFS_USE_C11_THREADS
-
-// Use POSIX threads
-//#  define EVFS_USE_PTHREADS
-#endif
-
-
 // ******************** Library behavior ********************
 
 // Define to make evfs_off_t 64-bits. When evfs_off_t is 32-bits the max supported

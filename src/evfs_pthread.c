@@ -15,7 +15,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 
-#if defined EVFS_USE_THREADING && defined EVFS_USE_PTHREADS
+#if defined EVFS_USE_THREADING && defined USE_PTHREADS
 
 
 static pthread_once_t s_evfs_init_flag = PTHREAD_ONCE_INIT;

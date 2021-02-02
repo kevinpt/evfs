@@ -16,12 +16,26 @@ else()
 endif()
 
 
+# Common build config settings
+configure_file (
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs_build_config.h.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/evfs_build_config.h
+  )
+
+# Select optional threading library for concurrent access to Gyre objects
+option(USE_C11_THREADS  "Enable support for C11 threading API"    OFF)
+option(USE_PTHREADS     "Enable support for POSIX threading API"  OFF)
+
+
+
+
 #################### sources ####################
 set(EVFS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 set(EVFS_LIB_SOURCE
   evfs.c
-  evfs_c11_thread.c
+  $<$<BOOL:${USE_C11_THREADS}>:evfs_c11_thread.c>
+  $<$<BOOL:${USE_PTHREADS}>:evfs_pthread.c>
   evfs_path.c
   shim_trace.c
   shim_jail.c
@@ -66,7 +80,7 @@ PRIVATE
 
 target_link_libraries(evfs
 PUBLIC
-  pthread
+  $<$<OR:$<BOOL:${USE_C11_THREADS}>,$<BOOL:${USE_PTHREADS}>>:pthread>
 )
 
 
@@ -83,7 +97,7 @@ PRIVATE
 
 target_link_libraries(evfs_so
 PUBLIC
-  pthread
+  $<$<OR:$<BOOL:${USE_C11_THREADS}>,$<BOOL:${USE_PTHREADS}>>:pthread>
 )
 
 

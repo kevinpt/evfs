@@ -16,11 +16,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 
-#if defined EVFS_USE_THREADING && defined EVFS_USE_C11_THREADS
-
-/*void evfs__lib_init(void) {*/
-/*  printf(">>>>> EVFIS INIT C11\n");*/
-/*}*/
+#if defined EVFS_USE_THREADING && defined USE_C11_THREADS
 
 static once_flag s_evfs_init_flag = ONCE_FLAG_INIT;
 void evfs__init_once(void) {

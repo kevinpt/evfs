@@ -20,7 +20,7 @@ Embedded Virtual Filesystem
 #define EVFS_SOURCE_USES_LOCK
 
 // ******************** C11 threads ********************
-#if defined EVFS_USE_C11_THREADS
+#if defined USE_C11_THREADS
 #  include <threads.h>
 
 typedef mtx_t EvfsLock;
@@ -30,7 +30,7 @@ typedef mtx_t EvfsLock;
 
 
 // ******************** pthreads ********************
-#elif defined EVFS_USE_PTHREADS
+#elif defined USE_PTHREADS
 #  include <pthread.h>
 
 typedef pthread_mutex_t EvfsLock;
