@@ -47,8 +47,8 @@ Embedded Virtual Filesystem
 
 // ******************** Library behavior ********************
 
-// Define to make evfs_off_t 64-bits. When evfs_off_t is 32-bits the max supported
-// file size will be 2GiB.
+// Define to make evfs_off_t 64-bits. When evfs_off_t is the default 32-bits, the max
+// supported file size will be 2GiB.
 //#define EVFS_FILE_OFFSET_BITS  64
 
 // Install an atexit() handler for shutdown

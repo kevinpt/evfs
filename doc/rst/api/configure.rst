@@ -2,14 +2,46 @@
 Configuring EVFS
 ================
 
+There are two sets of configuration options for the EVFS library. One is handled by the CMake build system using command line configuration settings. The other uses definitions from 'evfs_config.h' for settings that don't affect the build script.
 
 
+CMake configuration
+-------------------
+
+
+Thread support
+~~~~~~~~~~~~~~
+
+EVFS uses shared data structures that need to be protected with locks in multi-threaded envronments. You will need to select the threading API that EVFS will work with.
+
+Threading support is provided for the C11 and pthreads APIs. If you are targeting another platform like an RTOS, it is necessary to write wrapper functions that expose the required locking functionality to EVFS. See 'evfs_c11_thread.c' for an example of the required wrappers. You will also have to add a section to 'evfs_custom_threading.h' that provides a typedef for :c:type:`EvfsLock` and defines any :c:macro:`LOCK_INITIALIZER` macro.
+
+
+.. c:macro:: USE_C11_THREADS
+
+  Use the C11 threading API.
+
+.. c:macro:: USE_PTHREADS
+
+  Use the pthreads API.
+
+
+These are Boolean CMake options that are configured from the command line:
+
+.. code-block:: sh
+
+  > cmake -DUSE_C11_THREADS=on .
+
+  > cmake -DUSE_PTHREADS=on .
+
+
+C11 threads will take priority if both are enabled.
 
 
 evfs_config.h
 -------------
 
-The EVFS library is built with compile time configuration settings in 'evfs_config.h'. The defaults are set up to work in a typical PC environment. For embedded targets you will need modify features like the thread support settings.
+The configuration header has defaults that are set up to work in a typical PC environment. For embedded targets you will need modify features like the thread support settings.
 
 
 Debug settings
@@ -21,12 +53,12 @@ Debug settings
 
 .. c:macro:: EVFS_ASSERT_LEVEL
 
-  This sets the debug levels for the library's internel :c:macro:`ASSERT()` macro. It should be set to one of the following values:
+  This sets the debug levels for the library's internal :c:macro:`ASSERT()` macro. It should be set to one of the following values:
 
   * 0 - Ignore assertion
-  * 1 - Silent assertion check with no stderr output
-  * 2 - Check assertion with stderr output
-  * 3 - Check assertion with stderr output and call :c:func:`abort` when EVFS_DEBUG == 1, otherwise silent check
+  * 1 - Silent assertion check with no `stderr` output
+  * 2 - Check assertion with `stderr` output
+  * 3 - Check assertion with `stderr` output and call :c:func:`abort` when EVFS_DEBUG == 1, otherwise silent check
 
 
 Path handling
@@ -34,7 +66,7 @@ Path handling
 
 .. c:macro:: EVFS_PATH_SEPS
 
-  This is a string of all characters recognized as a path separator. Default is "\\/".
+  This is a string of all characters recognized as a path separator. Default is "\\\\/".
 
 .. c:macro:: EVFS_DIR_SEP
 
@@ -42,30 +74,11 @@ Path handling
 
 .. c:macro:: EVFS_MAX_PATH
 
-  Set the maximum allowed length for path strings. The affects the sizing of internal buffers. Default is 256. On memory constrained targets it may be necessary to reduce this.
+  Set the maximum allowed length for path strings. This affects the sizing of internal buffers. Default is 256. On memory constrained targets it may be necessary to reduce this.
 
 .. c:macro:: ALLOW_LONG_PATHS
 
-  Allow paths that exceed :c:macro:`EVFS_MAX_PATH` from :c:func:`evfs_path_join_ex` and :c:func:`evfs_path_absolute_ex`.
-
-
-
-Thread support
-~~~~~~~~~~~~~~
-
-Threading support is provided for the C11 and pthreads APIs. If you are targeting another platform like an RTOS it is necessary to write wrapper functions that expose the required locking functionality to EVFS. See 'evfs_c11_thread.c' for an example of the required wrappers. You will also have to add a section to 'evfs_custom_threading.h' that provides a typedef for :c:type:`EvfsLock` and defines any :c:macro:`LOCK_INITIALIZER` macro.
-
-.. c:macro:: EVFS_USE_THREADING
-
-  Enable use on multi-threaded or multi-tasking targets. EVFS uses shared data structures that need to be protected with locks in these envronments. You will need to select the threading API that EVFS will work with.
-
-.. c:macro:: EVFS_USE_C11_THREADS
-
-  Use the C11 threading API.
-
-.. c:macro:: EVFS_USE_PTHREADS
-
-  Use the pthreads API.
+  Allow paths that exceed :c:macro:`EVFS_MAX_PATH` as output from :c:func:`evfs_path_join_ex` and :c:func:`evfs_path_absolute_ex`.
 
 
 
