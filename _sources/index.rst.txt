@@ -45,6 +45,14 @@ Change the build type if you want to enable debug builds:
 
   > cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_PATH} -DCMAKE_BUILD_TYPE=Debug .
 
+Optional thread support can be added using either the C11 thread API or the pthreads library. This adds locking support for serialized access to common EVFS data structures. The CMake command line is used to enable a thread library as a Boolean option:
+
+.. code-block:: sh
+
+  > cmake -DUSE_C11_THREADS=on .
+
+  > cmake -DUSE_PTHREADS=on .
+
 
 Testing
 -------

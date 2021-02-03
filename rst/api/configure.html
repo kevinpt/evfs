@@ -36,9 +36,37 @@
             
   <div class="section" id="configuring-evfs">
 <h1>Configuring EVFS<a class="headerlink" href="#configuring-evfs" title="Permalink to this headline">¶</a></h1>
+<p>There are two sets of configuration options for the EVFS library. One is handled by the CMake build system using command line configuration settings. The other uses definitions from ‘evfs_config.h’ for settings that don’t affect the build script.</p>
+<div class="section" id="cmake-configuration">
+<h2>CMake configuration<a class="headerlink" href="#cmake-configuration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="thread-support">
+<h3>Thread support<a class="headerlink" href="#thread-support" title="Permalink to this headline">¶</a></h3>
+<p>EVFS uses shared data structures that need to be protected with locks in multi-threaded envronments. You will need to select the threading API that EVFS will work with.</p>
+<p>Threading support is provided for the C11 and pthreads APIs. If you are targeting another platform like an RTOS, it is necessary to write wrapper functions that expose the required locking functionality to EVFS. See ‘evfs_c11_thread.c’ for an example of the required wrappers. You will also have to add a section to ‘evfs_custom_threading.h’ that provides a typedef for <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsLock</span></code> and defines any <code class="xref c c-macro docutils literal notranslate"><span class="pre">LOCK_INITIALIZER</span></code> macro.</p>
+<dl class="c macro">
+<dt id="c.USE_C11_THREADS">
+<code class="sig-name descname">USE_C11_THREADS</code><a class="headerlink" href="#c.USE_C11_THREADS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Use the C11 threading API.</p>
+</dd></dl>
+
+<dl class="c macro">
+<dt id="c.USE_PTHREADS">
+<code class="sig-name descname">USE_PTHREADS</code><a class="headerlink" href="#c.USE_PTHREADS" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Use the pthreads API.</p>
+</dd></dl>
+
+<p>These are Boolean CMake options that are configured from the command line:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; cmake -DUSE_C11_THREADS<span class="o">=</span>on .
+
+&gt; cmake -DUSE_PTHREADS<span class="o">=</span>on .
+</pre></div>
+</div>
+<p>C11 threads will take priority if both are enabled.</p>
+</div>
+</div>
 <div class="section" id="evfs-config-h">
 <h2>evfs_config.h<a class="headerlink" href="#evfs-config-h" title="Permalink to this headline">¶</a></h2>
-<p>The EVFS library is built with compile time configuration settings in ‘evfs_config.h’. The defaults are set up to work in a typical PC environment. For embedded targets you will need modify features like the thread support settings.</p>
+<p>The configuration header has defaults that are set up to work in a typical PC environment. For embedded targets you will need modify features like the thread support settings.</p>
 <div class="section" id="debug-settings">
 <h3>Debug settings<a class="headerlink" href="#debug-settings" title="Permalink to this headline">¶</a></h3>
 <dl class="c macro">
@@ -50,12 +78,12 @@
 <dl class="c macro">
 <dt id="c.EVFS_ASSERT_LEVEL">
 <code class="sig-name descname">EVFS_ASSERT_LEVEL</code><a class="headerlink" href="#c.EVFS_ASSERT_LEVEL" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>This sets the debug levels for the library’s internel <code class="xref c c-macro docutils literal notranslate"><span class="pre">ASSERT()</span></code> macro. It should be set to one of the following values:</p>
+<dd><p>This sets the debug levels for the library’s internal <code class="xref c c-macro docutils literal notranslate"><span class="pre">ASSERT()</span></code> macro. It should be set to one of the following values:</p>
 <ul class="simple">
 <li><p>0 - Ignore assertion</p></li>
-<li><p>1 - Silent assertion check with no stderr output</p></li>
-<li><p>2 - Check assertion with stderr output</p></li>
-<li><p>3 - Check assertion with stderr output and call <code class="xref c c-func docutils literal notranslate"><span class="pre">abort()</span></code> when EVFS_DEBUG == 1, otherwise silent check</p></li>
+<li><p>1 - Silent assertion check with no <cite>stderr</cite> output</p></li>
+<li><p>2 - Check assertion with <cite>stderr</cite> output</p></li>
+<li><p>3 - Check assertion with <cite>stderr</cite> output and call <code class="xref c c-func docutils literal notranslate"><span class="pre">abort()</span></code> when EVFS_DEBUG == 1, otherwise silent check</p></li>
 </ul>
 </dd></dl>
 
@@ -65,7 +93,7 @@
 <dl class="c macro">
 <dt id="c.EVFS_PATH_SEPS">
 <code class="sig-name descname">EVFS_PATH_SEPS</code><a class="headerlink" href="#c.EVFS_PATH_SEPS" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>This is a string of all characters recognized as a path separator. Default is “\/”.</p>
+<dd><p>This is a string of all characters recognized as a path separator. Default is “\\/”.</p>
 </dd></dl>
 
 <dl class="c macro">
@@ -77,35 +105,13 @@
 <dl class="c macro">
 <dt id="c.EVFS_MAX_PATH">
 <code class="sig-name descname">EVFS_MAX_PATH</code><a class="headerlink" href="#c.EVFS_MAX_PATH" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Set the maximum allowed length for path strings. The affects the sizing of internal buffers. Default is 256. On memory constrained targets it may be necessary to reduce this.</p>
+<dd><p>Set the maximum allowed length for path strings. This affects the sizing of internal buffers. Default is 256. On memory constrained targets it may be necessary to reduce this.</p>
 </dd></dl>
 
 <dl class="c macro">
 <dt id="c.ALLOW_LONG_PATHS">
 <code class="sig-name descname">ALLOW_LONG_PATHS</code><a class="headerlink" href="#c.ALLOW_LONG_PATHS" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Allow paths that exceed <a class="reference internal" href="#c.EVFS_MAX_PATH" title="EVFS_MAX_PATH"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_MAX_PATH</span></code></a> from <a class="reference internal" href="paths.html#c.evfs_path_join_ex" title="evfs_path_join_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_join_ex()</span></code></a> and <a class="reference internal" href="paths.html#c.evfs_path_absolute_ex" title="evfs_path_absolute_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_absolute_ex()</span></code></a>.</p>
-</dd></dl>
-
-</div>
-<div class="section" id="thread-support">
-<h3>Thread support<a class="headerlink" href="#thread-support" title="Permalink to this headline">¶</a></h3>
-<p>Threading support is provided for the C11 and pthreads APIs. If you are targeting another platform like an RTOS it is necessary to write wrapper functions that expose the required locking functionality to EVFS. See ‘evfs_c11_thread.c’ for an example of the required wrappers. You will also have to add a section to ‘evfs_custom_threading.h’ that provides a typedef for <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsLock</span></code> and defines any <code class="xref c c-macro docutils literal notranslate"><span class="pre">LOCK_INITIALIZER</span></code> macro.</p>
-<dl class="c macro">
-<dt id="c.EVFS_USE_THREADING">
-<code class="sig-name descname">EVFS_USE_THREADING</code><a class="headerlink" href="#c.EVFS_USE_THREADING" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Enable use on multi-threaded or multi-tasking targets. EVFS uses shared data structures that need to be protected with locks in these envronments. You will need to select the threading API that EVFS will work with.</p>
-</dd></dl>
-
-<dl class="c macro">
-<dt id="c.EVFS_USE_C11_THREADS">
-<code class="sig-name descname">EVFS_USE_C11_THREADS</code><a class="headerlink" href="#c.EVFS_USE_C11_THREADS" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Use the C11 threading API.</p>
-</dd></dl>
-
-<dl class="c macro">
-<dt id="c.EVFS_USE_PTHREADS">
-<code class="sig-name descname">EVFS_USE_PTHREADS</code><a class="headerlink" href="#c.EVFS_USE_PTHREADS" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Use the pthreads API.</p>
+<dd><p>Allow paths that exceed <a class="reference internal" href="#c.EVFS_MAX_PATH" title="EVFS_MAX_PATH"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_MAX_PATH</span></code></a> as output from <a class="reference internal" href="paths.html#c.evfs_path_join_ex" title="evfs_path_join_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_join_ex()</span></code></a> and <a class="reference internal" href="paths.html#c.evfs_path_absolute_ex" title="evfs_path_absolute_ex"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_path_absolute_ex()</span></code></a>.</p>
 </dd></dl>
 
 </div>
@@ -195,10 +201,13 @@
   <h3><a href="../../index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Configuring EVFS</a><ul>
+<li><a class="reference internal" href="#cmake-configuration">CMake configuration</a><ul>
+<li><a class="reference internal" href="#thread-support">Thread support</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#evfs-config-h">evfs_config.h</a><ul>
 <li><a class="reference internal" href="#debug-settings">Debug settings</a></li>
 <li><a class="reference internal" href="#path-handling">Path handling</a></li>
-<li><a class="reference internal" href="#thread-support">Thread support</a></li>
 <li><a class="reference internal" href="#library-behavior">Library behavior</a></li>
 <li><a class="reference internal" href="#vfs-options">VFS options</a></li>
 </ul>
