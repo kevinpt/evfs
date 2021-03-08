@@ -11,7 +11,7 @@ String ranges
 
 These functions frequently take a :c:type:`StringRange` or :c:type:`AppendRange` struct as input and output parameters. These are part of small a string utility in 'src/util/range_strings.c'. These structs represent a substring pointing into another string. :c:type:`StringRange` objects represent a substring that will not change bounds after a function call. :c:type:`AppendRange` objects cover the empty space at the end of a string to append into. They have their start position advanced after. They have the same layout and only differ by the presence of const pointers in :c:type:`StringRange`. These types can be casted back and forth as necessary.
 
-The general procedure for using these types is to prepare a storage area for a string, either a local array or one produced by dynamic allocation. You then initialize the :c:type:`StringRange` to cover the char array. This can be accomplished with a static initializer for true arrays or by calling :c:func:`init_range` with the start and size of the array when you have a pointer to allocated storage.
+The general procedure for using these types is to prepare a storage area for a string, either a local array or one produced by dynamic allocation. You then initialize the :c:type:`StringRange` to cover the char array. This can be accomplished with a static initializer for true arrays or by calling :c:func:`range_init` with the start and size of the array when you have a pointer to allocated storage.
 
 .. code-block:: c
 
@@ -20,11 +20,11 @@ The general procedure for using these types is to prepare a storage area for a s
 
   char *buf2 = evfs_malloc(100);
   StringRange buf2_r;
-  init_range(&buf_2_r, buf2, 100); // Initialize pointers
+  range_init(&buf_2_r, buf2, 100); // Initialize pointers
 
   char *str; // Unknown length
   StringRange str_r;
-  init_range(&str_r, str, strlen(str)+1); // When using strlen, add 1 to include the NUL
+  range_init(&str_r, str, strlen(str)+1); // When using strlen, add 1 to include the NUL
 
 
 A substring pointed to by :c:type:`StringRange` will not necessarily be NUL terminated. To print the substring using :c:func:`printf` formatted output, you use the "%.*s" specifier and the :c:macro:`RANGE_FMT` macro:
