@@ -336,7 +336,7 @@ static bool chunk_exists(Evfs *base_vfs, MultipartState *ms, int chunk_num, evfs
   LOCK(ms->buf);
   char *joined = ms->buf->tmp_path;
   StringRange joined_r;
-  init_range(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
+  range_init(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
 #else
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);
@@ -382,7 +382,7 @@ static int evict_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num, evfs_o
   LOCK(ms->buf);
   char *joined = ms->buf->tmp_path;
   StringRange joined_r;
-  init_range(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
+  range_init(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
 #else
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);
@@ -458,7 +458,7 @@ static int activate_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num) {
   LOCK(ms->buf);
   char *joined = ms->buf->tmp_path;
   StringRange joined_r;
-  init_range(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
+  range_init(&joined_r, joined, COUNT_OF(ms->buf->tmp_path));
 #else
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);
@@ -510,7 +510,7 @@ int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
   LOCK(rs->base.buf);
   char *joined = rs->base.buf->tmp_path;
   StringRange joined_r;
-  init_range(&joined_r, joined, COUNT_OF(rs->base.buf->tmp_path));
+  range_init(&joined_r, joined, COUNT_OF(rs->base.buf->tmp_path));
 #else
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);
@@ -711,7 +711,7 @@ static int open_rotate_container(Evfs *vfs, const char *path, RotateFile *fh, in
   LOCK(&shim_data->buf);
   char *joined = shim_data->buf.tmp_path;
   StringRange joined_r;
-  init_range(&joined_r, joined, COUNT_OF(shim_data->buf.tmp_path));
+  range_init(&joined_r, joined, COUNT_OF(shim_data->buf.tmp_path));
 #else
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);

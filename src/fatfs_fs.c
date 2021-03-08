@@ -93,7 +93,7 @@ static bool fatfs__path_root_component(Evfs *vfs, const char *path, StringRange 
 
   int leading_seps = strspn(pos, EVFS_PATH_SEPS);
   size_t root_len = (pos - path) + leading_seps;
-  init_range(root, (char *)path, root_len);
+  range_init(root, (char *)path, root_len);
 
   return leading_seps > 0; // Report absolute path
 }

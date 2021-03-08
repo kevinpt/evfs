@@ -104,7 +104,7 @@ int evfs_path_basename(const char *path, StringRange *tail) {
   if(char_match(*pos, EVFS_PATH_SEPS))
     pos++;
 
-  init_range(tail, pos, end-pos);
+  range_init(tail, pos, end-pos);
 
   return EVFS_OK;
 }
@@ -165,7 +165,7 @@ int evfs_vfs_path_dirname(Evfs *vfs, const char *path, StringRange *head) {
     pos++;
   }
 
-  init_range(head, path, pos - path);
+  range_init(head, path, pos - path);
 
   return  EVFS_OK;
 }
@@ -173,8 +173,8 @@ int evfs_vfs_path_dirname(Evfs *vfs, const char *path, StringRange *head) {
 
 int evfs_vfs_path_join_str(Evfs *vfs, const char *head, const char *tail, StringRange *joined) {
   StringRange head_r, tail_r;
-  init_range(&head_r, head, strlen(head));
-  init_range(&tail_r, tail, strlen(tail));
+  range_init(&head_r, head, strlen(head));
+  range_init(&tail_r, tail, strlen(tail));
 
   return evfs_vfs_path_join(vfs, &head_r, &tail_r, joined);
 }
@@ -582,7 +582,7 @@ int evfs_vfs_path_absolute(Evfs *vfs, const char *path, StringRange *absolute) {
 
   size_t path_len = strlen(path_start);
   StringRange path_r;
-  init_range(&path_r, (char *)path_start, path_len);
+  range_init(&path_r, (char *)path_start, path_len);
 
   // Check if we have space left for joining without a new string
   size_t free_space = range_size(&joined_r) - cwd_len - 1;
@@ -605,7 +605,7 @@ int evfs_vfs_path_absolute(Evfs *vfs, const char *path, StringRange *absolute) {
     joined = evfs_malloc(joined_len);
     if(MEM_CHECK(joined)) return EVFS_ERR_ALLOC;
 
-    init_range(&joined_r, joined, joined_len); // Joining into new temp buf
+    range_init(&joined_r, joined, joined_len); // Joining into new temp buf
 
     StringRange cwd_r = *absolute; // This includes any DOS-style root component added above
 
@@ -672,7 +672,7 @@ static int path_absolute_from_rel_overlap(Evfs *vfs, const char *path, StringRan
 
   // Move path
   memmove(path_start + cwd_len+1, path_start, path_len+1);
-  init_range(&cwd_r, path_start, cwd_len+1); // Change CWD to newly opened gap at start
+  range_init(&cwd_r, path_start, cwd_len+1); // Change CWD to newly opened gap at start
 
   // Get current directory
   rval = vfs->m_get_cur_dir(vfs, (StringRange *)&cwd_r);

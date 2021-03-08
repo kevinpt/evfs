@@ -57,7 +57,7 @@ typedef struct {
 
 // ******************** Range initialization ********************
 
-#define init_range(r, s, l) do { \
+#define range_init(r, s, l) do { \
     (r)->start = (s);       \
     (r)->end   = (s) + (l); \
   } while(0)
@@ -94,6 +94,12 @@ void range_terminate(AppendRange *rng);
 // ******************** Range output ********************
 void range_puts(StringRange *rng);
 void range_fputs(StringRange *rng, FILE *stream);
+
+// ******************** Comparison ********************
+
+bool range_eq(StringRange *rng, const char *str);
+bool range_eq_range(StringRange *rng, StringRange *rng2);
+bool range_is_int(StringRange *rng);
 
 // ******************** Tokenizing ********************
 bool range_token(const char *str, const char *delim, StringRange *token);

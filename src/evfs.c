@@ -233,7 +233,7 @@ static bool default__path_root_component(Evfs *vfs, const char *path, StringRang
 
   int leading_seps = strspn(path, EVFS_PATH_SEPS);
 
-  init_range(root, (char *)path, leading_seps);
+  range_init(root, (char *)path, leading_seps);
 
   return leading_seps > 0; // Report absolute path
 }
@@ -658,7 +658,7 @@ int evfs_make_path_ex(const char *path, const char *vfs_name) {
   if(PTR_CHECK(path)) return EVFS_ERR_BAD_ARG;
 
   StringRange path_r;
-  init_range(&path_r, (char *)path, strlen(path)+1);
+  range_init(&path_r, (char *)path, strlen(path)+1);
   return evfs_make_path_range_ex(&path_r, vfs_name);
 }
 
@@ -692,7 +692,7 @@ int evfs_make_path_range_ex(StringRange *path, const char *vfs_name) {
 
   // Use string range to concatenate each path segment
   AppendRange cur_path_r;
-  init_range(&cur_path_r, cur_path, path_len+1);
+  range_init(&cur_path_r, cur_path, path_len+1);
 
   size_t limit = path_len;
 
@@ -1028,8 +1028,8 @@ int evfs_path_join_str_ex(const char *head, const char *tail, StringRange *joine
   if(!vfs) THROW(EVFS_ERR_NO_VFS);
 
   StringRange head_r, tail_r;
-  init_range(&head_r, head, strlen(head));
-  init_range(&tail_r, tail, strlen(tail));
+  range_init(&head_r, head, strlen(head));
+  range_init(&tail_r, tail, strlen(tail));
 
   return evfs_vfs_path_join(vfs, &head_r, &tail_r, joined);
 }

@@ -420,8 +420,8 @@ static int jail__set_cur_dir(Evfs *vfs, const char *path) {
   } else { // Path is relative: Join it to the existing directory
     StringRange head, tail, joined;
 
-    init_range(&head, shim_data->cur_dir, sizeof(shim_data->cur_dir));
-    init_range(&tail, (char *)path, strlen(path));
+    range_init(&head, shim_data->cur_dir, sizeof(shim_data->cur_dir));
+    range_init(&tail, (char *)path, strlen(path));
 
     // Note: evfs__vfs_existing_dir() below is going to take the lock (via jail__stat) so
     //       we have to malloc a buffer.
@@ -429,7 +429,7 @@ static int jail__set_cur_dir(Evfs *vfs, const char *path) {
     char *joined_path = evfs_malloc(joined_size);
     if(MEM_CHECK(joined_path)) return EVFS_ERR_ALLOC;
 
-    init_range(&joined, joined_path, joined_size);
+    range_init(&joined, joined_path, joined_size);
 
     evfs_vfs_path_join(vfs, &head, &tail, &joined);
 

@@ -128,7 +128,7 @@ static int make_absolute_path(Evfs *vfs, const char *path, char **absolute, bool
   }
 
   AppendRange abs_path_r;
-  init_range(&abs_path_r, abs_path, abs_size);
+  range_init(&abs_path_r, abs_path, abs_size);
 
   int status = evfs_vfs_path_absolute(vfs, path, (StringRange *)&abs_path_r);
   if(status == EVFS_OK)
@@ -481,14 +481,14 @@ static int littlefs__set_cur_dir(Evfs *vfs, const char *path) {
   } else { // Path is relative: Join it to the existing directory
     StringRange head, tail, joined;
     
-    init_range(&head, fs_data->cur_dir, LFS_NAME_MAX);
-    init_range(&tail, (char *)path, strlen(path));
+    range_init(&head, fs_data->cur_dir, LFS_NAME_MAX);
+    range_init(&tail, (char *)path, strlen(path));
     
     size_t joined_size = strlen(fs_data->cur_dir) + 1 + strlen(path) + 1;
     char *joined_path = evfs_malloc(joined_size);
     if(MEM_CHECK(joined_path)) return EVFS_ERR_ALLOC;
 
-    init_range(&joined, joined_path, joined_size);
+    range_init(&joined, joined_path, joined_size);
 
     evfs_vfs_path_join(vfs, &head, &tail, &joined);
 

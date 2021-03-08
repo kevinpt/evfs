@@ -44,18 +44,18 @@ repeatedly in a sequence.
 
 In any case, a RangeString needs to point into valid memory before it can be
 used. General initialization for arrays and pointers is accomplished with the
-init_range() macro:
+range_init() macro:
 
   char buf[100];
   StringRange buf_r;
 
-  init_range(&buf_r, buf, sizeof(buf));
+  range_init(&buf_r, buf, sizeof(buf));
 
 
   char *str;
   StringRange str_r;
 
-  init_range(&str_r, str, strlen(str)+1); // You should include existing NUL in new ranges
+  range_init(&str_r, str, strlen(str)+1); // You should include existing NUL in new ranges
 
 An alternative initializer macro can be used for arrays:
 
@@ -164,7 +164,8 @@ int range_copy_str(AppendRange *rng, const char *str, bool truncate) {
       *dest = '\0';
       rval = -(rval-1);
     } else {
-      *rng->start = '\0'; // Wipe partial string
+      if(rng->start)
+        *rng->start = '\0'; // Wipe partial string
       rval = -(rval + strlen(src)); // Add uncopied bytes
     }
   }
@@ -202,7 +203,8 @@ int range_cat_fmt(AppendRange *rng, const char *fmt, ...) {
       if(rval < range_size(rng)) { // Success
         rng->start += rval;
       } else { // Truncated
-        *rng->start = '\0'; // Wipe partial string
+        if(rng->start)
+          *rng->start = '\0'; // Wipe partial string
         rval = -rval;
       }
     }
@@ -244,7 +246,8 @@ int range_cat_str(AppendRange *rng, const char *str) {
   if(done) {
     rng->start = dest-1;
   } else { // Truncated
-    *rng->start = '\0'; // Wipe partial string
+    if(rng->start)
+      *rng->start = '\0'; // Wipe partial string
     rval = -(rval + strlen(src)); // Add uncopied bytes
   }
 
@@ -283,7 +286,8 @@ int range_cat_str_no_nul(AppendRange *rng, const char *str) {
   if(done) {
     rng->start = dest-1;
   } else { // Truncated
-    *rng->start = '\0'; // Wipe partial string
+    if(rng->start)
+      *rng->start = '\0'; // Wipe partial string
     rval = -(rval + strlen(src)); // Add uncopied bytes
   }
 
@@ -331,7 +335,8 @@ int range_cat_range(AppendRange *rng, StringRange *src_rng) {
   if(done) {
     rng->start = dest-1;
   } else { // Truncated
-    *rng->start = '\0'; // Wipe partial string
+    if(rng->start)
+      *rng->start = '\0'; // Wipe partial string
     rval = -(rval + strnlen(src, src_rng->end - src)); // Add uncopied bytes
   }
 
@@ -379,7 +384,8 @@ int range_cat_range_no_nul(AppendRange *rng, StringRange *src_rng) {
   if(done) {
     rng->start = dest;
   } else { // Truncated
-    *rng->start = '\0'; // Wipe partial string
+    if(rng->start)
+      *rng->start = '\0'; // Wipe partial string
     rval = -(rval + strnlen(src, src_rng->end - src)); // Add uncopied bytes
   }
 
@@ -398,7 +404,7 @@ Returns:
   1 on success, -1 on failure.
 */
 int range_cat_char(AppendRange *rng, char ch) {
-  if(rng->start < rng->end-1) {
+  if(rng->start && rng->start < rng->end-1) {
     *rng->start++ = ch;
     *rng->start = '\0';
     return 1;
@@ -418,7 +424,7 @@ Returns:
   1 on success, -1 on failure.
 */
 int range_cat_char_no_nul(AppendRange *rng, char ch) {
-  if(rng->start < rng->end-1) {
+  if(rng->start && rng->start < rng->end-1) {
     *rng->start++ = ch;
     return 1;
   }
@@ -529,6 +535,47 @@ void range_fputs(StringRange *rng, FILE *stream) {
   }
 }
 
+
+// ******************** Comparison ********************
+
+bool range_eq(StringRange *rng, const char *str) {
+  const char *rpos = rng->start;
+  const char *spos = str;
+
+  while(rpos < rng->end && *spos != '\0') {
+    if(*rpos != *spos) return false;
+    rpos++;
+    spos++;
+  }
+
+  return (rpos == rng->end && *spos == '\0');
+}
+
+
+bool range_eq_range(StringRange *rng, StringRange *rng2) {
+  const char *rpos = rng->start;
+  const char *r2pos = rng2->start;
+
+  while(rpos < rng->end && r2pos < rng2->end) {
+    if(*rpos != *r2pos) return false;
+    rpos++;
+    r2pos++;
+  }
+
+  return (rpos == rng->end && r2pos == rng2->end);
+}
+
+
+bool range_is_int(StringRange *rng) {
+  const char *rpos = rng->start;
+
+  while(rpos < rng->end) {
+    if(!isdigit(*rpos)) return false;
+    rpos++;
+  }
+
+  return true;
+}
 
 // ******************** Tokenizing ********************
 
