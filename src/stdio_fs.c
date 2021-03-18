@@ -436,7 +436,7 @@ static int stdio__vfs_ctrl(Evfs *vfs, int cmd, void *arg) {
     case EVFS_CMD_GET_STAT_FIELDS:
       {
         unsigned *v = (unsigned *)arg;
-        *v = EVFS_INFO_NAME | EVFS_INFO_SIZE | EVFS_INFO_MTIME | EVFS_INFO_TYPE;
+        *v = EVFS_INFO_SIZE | EVFS_INFO_MTIME | EVFS_INFO_TYPE;
       }
       return EVFS_OK; break;
 
