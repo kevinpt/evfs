@@ -37,7 +37,7 @@
   <div class="section" id="filesystems">
 <h1>Filesystems<a class="headerlink" href="#filesystems" title="Permalink to this headline">¶</a></h1>
 <p>EVFS supports multiple filesystem interface backends. In addition to system level file access via C stdio and POSIX calls, the library can access
-FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. Each filesystem has a registration function that wraps <a class="reference internal" href="library.html#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>, adding the necessary arguments for configuration and constructing dynamic structures.</p>
+FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. There are also two filesystems that can mount an archive in tar format stored on an existing VFS or as statically linked data. Each filesystem has a registration function that wraps <a class="reference internal" href="library.html#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>, adding the necessary arguments for configuration and constructing dynamic structures.</p>
 <div class="section" id="stdio">
 <h2>Stdio<a class="headerlink" href="#stdio" title="Permalink to this headline">¶</a></h2>
 <p>EVFS implements a special “stdio” filesystem which uses the C file access API. Essentially everything that works with a <span class="xref c c-texpr">FILE*</span>. Directory operations are not supported by the C standard library so POSIX API calls are used for those features. If your target system does not support POSIX you can undefine <a class="reference internal" href="configure.html#c.EVFS_USE_STDIO_POSIX" title="EVFS_USE_STDIO_POSIX"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_STDIO_POSIX</span></code></a> in ‘evfs_config.h’ and work with limited functionality. There is only one “stdio” filesystem per process so you just need to register this once for all common file I/O.</p>
@@ -132,8 +132,8 @@ void <code class="sig-name descname">fatfs_unmount_image</code><span class="sig-
 </dd></dl>
 
 <p>If you need a new image, one can be prepared using <a class="reference internal" href="#c.fatfs_make_image" title="fatfs_make_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_make_image()</span></code></a>. This will not alter an existing image file. When the image is ready you mount it within FatFs using <a class="reference internal" href="#c.fatfs_mount_image" title="fatfs_mount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_mount_image()</span></code></a>. At this point the image is associated with a FatFs volume number. You can then register a FatFs instance using that volume number. The contents of the image can then be read and modified as usual using the EVFS API. When done with the image you should unmount it within FatFs using <a class="reference internal" href="#c.fatfs_unmount_image" title="fatfs_unmount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_unmount_image()</span></code></a>.</p>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">Using a FatFs image file</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Using a FatFs image file</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
@@ -248,8 +248,8 @@ void <code class="sig-name descname">littlefs_unmount_image</code><span class="s
 </dd></dl>
 
 <p>Image handling functions are similar to those for FatFs. All callback functions are supplied in the <code class="xref c c-type docutils literal notranslate"><span class="pre">lfs_config</span></code> struct.</p>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Using a littlefs image file</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Using a littlefs image file</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
@@ -318,6 +318,84 @@ void <code class="sig-name descname">littlefs_unmount_image</code><span class="s
 </div>
 </div>
 </div>
+<div class="section" id="tar-fs">
+<span id="id3"></span><h2>Tar FS<a class="headerlink" href="#tar-fs" title="Permalink to this headline">¶</a></h2>
+<p>Use <a class="reference internal" href="#c.evfs_register_tar_fs" title="evfs_register_tar_fs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_tar_fs()</span></code></a> to mount an uncompressed tar file as a virtual filesystem. Data in the tar file is read only. Only normal files are supported. You cannot open a directory object to get a file listing.</p>
+<p>You will need to have an existing VFS registered to open the tar file needed by the registration function. When generating a tar file you should reduce the blocking factor to 1 to minimize wasted padding after each file. This will impose an overhead of 512 bytes for each file header plus an average 256 bytes of padding after each file (assuming random file sizes).</p>
+<dl class="c function">
+<dt id="c.evfs_register_tar_fs">
+int <code class="sig-name descname">evfs_register_tar_fs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, EvfsFile *<em>tar_file</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_tar_fs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a Tar FS instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>tar_file</strong> – EVFS file of tar data</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="tar-resource-fs">
+<span id="tar-rsrc-fs"></span><h2>Tar resource FS<a class="headerlink" href="#tar-resource-fs" title="Permalink to this headline">¶</a></h2>
+<p>This is an alternative to the Tar FS that lets you use in memory data resources encoded in tar format in place of a normal filesystem. Use <a class="reference internal" href="#c.evfs_register_tar_rsrc_fs" title="evfs_register_tar_rsrc_fs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_tar_rsrc_fs()</span></code></a> to mount a static array in tar format as a virtual filesystem.</p>
+<p>Data in the tar resource is read only. Only normal files are supported. You cannot open a directory object to get a file listing.</p>
+<p>The tar resource data should be statically statically linked into your program. This can be generated by using “xxd -i” to convert a tar file into a C header. You can also create an assembly wrapper that uses the
+<code class="docutils literal notranslate"><span class="pre">.incbin</span></code> directive or you can configure a linker script to link a tar file directly into its own section.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; tar cfb foo.tar <span class="m">1</span> src
+&gt; xxd -i foo.tar &gt; foo_tar.h
+</pre></div>
+</div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/tar_rsrc_fs.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;foo_tar.h&quot;</span><span class="cp"></span>
+
+<span class="c1">// Mount the tar resource from array in foo_tar.h</span>
+<span class="c1">// xxd generates an array and length variable in the header</span>
+<span class="n">evfs_register_tar_rsrc_fs</span><span class="p">(</span><span class="s">&quot;tarfs&quot;</span><span class="p">,</span> <span class="n">foo_tar</span><span class="p">,</span> <span class="n">foo_tar_len</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+
+<span class="n">EvfsFile</span> <span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;bar.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span>
+<span class="p">...</span>
+<span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>File data can be accessed using the usual EVFS API with <a class="reference internal" href="library.html#c.evfs_file_read" title="evfs_file_read"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_file_read()</span></code></a>. You can also directly access the resource data for a file by passing the <cite>EVFS_CMD_GET_RSRC_ADDR</cite> command to <a class="reference internal" href="library.html#c.evfs_file_ctrl" title="evfs_file_ctrl"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_file_ctrl()</span></code></a> and using <a class="reference internal" href="library.html#c.evfs_file_size" title="evfs_file_size"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_file_size()</span></code></a> for the in-memory array bounds.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">EvfsFile</span> <span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;bar.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span>
+
+<span class="c1">// Get direct pointer to resource data for &quot;bar.txt&quot;</span>
+<span class="kt">uint8_t</span> <span class="o">*</span><span class="n">bar_txt_data</span><span class="p">;</span>
+<span class="n">evfs_file_ctrl</span><span class="p">(</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_CMD_GET_RSRC_ADDR</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">bar_txt_data</span><span class="p">);</span>
+<span class="kt">size_t</span> <span class="n">bar_txt_len</span> <span class="o">=</span> <span class="n">evfs_file_size</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+</pre></div>
+</div>
+<dl class="c function">
+<dt id="c.evfs_register_tar_rsrc_fs">
+int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, uint8_t *<em>resource</em>, size_t <em>resource_len</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_tar_rsrc_fs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a Tar resource FS instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>resource</strong> – Array of Tar resource data</p></li>
+<li><p><strong>resource_len</strong> – Length of the resource array</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
 </div>
 
 
@@ -363,6 +441,8 @@ void <code class="sig-name descname">littlefs_unmount_image</code><span class="s
 <li><a class="reference internal" href="#stdio">Stdio</a></li>
 <li><a class="reference internal" href="#fatfs">FatFs</a></li>
 <li><a class="reference internal" href="#littlefs">littlefs</a></li>
+<li><a class="reference internal" href="#tar-fs">Tar FS</a></li>
+<li><a class="reference internal" href="#tar-resource-fs">Tar resource FS</a></li>
 </ul>
 </li>
 </ul>
