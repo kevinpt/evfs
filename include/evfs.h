@@ -168,7 +168,8 @@ struct EvfsDir_s {
   M(EVFS_ERR_INIT, -18) \
   M(EVFS_ERR_DISABLED, -19) \
   M(EVFS_ERR_INVALID, -20) \
-  M(EVFS_ERR_REPAIRED, -21)
+  M(EVFS_ERR_REPAIRED, -21) \
+  M(EVFS_ERR_NOT_OPEN, -22)
 
 
 #define EVFS_ENUM_ITEM(E, V) E = V,
@@ -187,16 +188,17 @@ enum EvfsErrors {
 #define CMD_DEF(n, m, t)  ( ((n) << 2) | (m) )
 
 // evfs_vfs_ctrl() and evfs_file_ctrl() cmd arguments
-// Shim specific VFS commands start at 200
-// Shim specific file commands start at 300
+// Shim specific VFS commands start at 100
+// Shim specific file commands start at 200
 #define EVFS_CMD_LIST(M) \
   M(EVFS_CMD_UNREGISTER,      CMD_DEF(10, CMD_WR, void)) \
   M(EVFS_CMD_SET_READONLY,    CMD_DEF(11, CMD_WR, unsigned)) \
   M(EVFS_CMD_SET_NO_DIR_DOTS, CMD_DEF(12, CMD_WR, unsigned)) \
   M(EVFS_CMD_GET_STAT_FIELDS, CMD_DEF(13, CMD_RD, unsigned)) \
   M(EVFS_CMD_GET_DIR_FIELDS,  CMD_DEF(14, CMD_RD, unsigned)) \
-  M(EVFS_CMD_SET_ROTATE_CFG,  CMD_DEF(201, CMD_WR, RotateConfig)) \
-  M(EVFS_CMD_SET_ROTATE_TRIM, CMD_DEF(301, CMD_WR, evfs_off_t))
+  M(EVFS_CMD_SET_ROTATE_CFG,  CMD_DEF(101, CMD_WR, RotateConfig)) \
+  M(EVFS_CMD_SET_ROTATE_TRIM, CMD_DEF(201, CMD_WR, evfs_off_t)) \
+  M(EVFS_CMD_GET_RSRC_ADDR,   CMD_DEF(202, CMD_RD, uint8_t *))
 
 // Offset for external user defined commands
 #define EVFS_CMD_USER_DEFINED  1000

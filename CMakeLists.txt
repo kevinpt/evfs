@@ -42,7 +42,13 @@ set(EVFS_LIB_SOURCE
   shim_rotate.c
   util/glob.c
   util/range_strings.c
+  util/dhash.c
+  util/search.c
   stdio_fs.c
+  tar_iter.c
+  tar_fs.c
+  tar_iter_rsrc.c
+  tar_rsrc_fs.c
 )
 
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
@@ -153,6 +159,22 @@ PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
 target_link_libraries(test_jail
+PRIVATE
+  evfs
+)
+
+#################### test_tar ####################
+add_executable(test_tar EXCLUDE_FROM_ALL test/test_tar.c)
+target_sources(test_tar
+PRIVATE
+  ${EVFS_PREFIX}/util/getopt_r.c
+  ${EVFS_PREFIX}/stdio_fs.c
+)
+target_include_directories(test_tar
+PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+)
+target_link_libraries(test_tar
 PRIVATE
   evfs
 )

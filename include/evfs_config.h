@@ -72,4 +72,7 @@ Embedded Virtual Filesystem
 // The log rotate shim supports a common shared buffer for path operations.
 #define EVFS_USE_ROTATE_SHARED_BUFFER
 
+// Shared buffers for the tar FS and tar resource FS
+#define EVFS_USE_TARFS_SHARED_BUFFER
+
 #endif // EVFS_CONFIG_H
