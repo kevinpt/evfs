@@ -407,6 +407,7 @@ int evfs_vfs_path_extname(Evfs *vfs, const char *path, StringRange *ext);
 int evfs_vfs_path_normalize(Evfs *vfs, const char *path, StringRange *normalized);
 int evfs_vfs_path_absolute(Evfs *vfs, const char *path, StringRange *absolute);
 bool evfs_vfs_path_is_absolute(Evfs *vfs, const char *path);
+int evfs_vfs_scan_path(Evfs *vfs, const char *path, StringRange *element);
 
 
 // ******************** File access methods ********************

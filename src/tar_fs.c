@@ -297,7 +297,7 @@ static ptrdiff_t tarfs__file_read(EvfsFile *fh, void *buf, size_t size) {
   if(!fil->is_open) return EVFS_ERR_NOT_OPEN;
 
   evfs_off_t remaining = fil->file_size - fil->read_pos;
-  if(remaining == 0) return 0;
+  if(remaining <= 0) return 0;
 
   if(size > remaining)
     size = remaining;
@@ -320,7 +320,7 @@ static int tarfs__file_truncate(EvfsFile *fh, evfs_off_t size) {
 }
 
 static int tarfs__file_sync(EvfsFile *fh) {
-  return EVFS_ERR_NO_SUPPORT;
+  return EVFS_OK; // Need to report as OK because evfs_file_size() syncs
 }
 
 static evfs_off_t tarfs__file_size(EvfsFile *fh) {

@@ -701,3 +701,27 @@ static int path_absolute_from_rel_overlap(Evfs *vfs, const char *path, StringRan
   return evfs_vfs_path_normalize(vfs, path, absolute);
 }
 
+
+int evfs_vfs_scan_path(Evfs *vfs, const char *path, StringRange *element) {
+  bool new_tok;
+
+  if(path) {
+    // Skip over root component
+    // We don't want the tokenizer to see any DOS drive letters
+    const char *path_start = path;
+    StringRange root;
+    bool is_absolute = vfs->m_path_root_component(vfs, path, &root);
+    if(is_absolute)
+      path_start += range_size(&root);
+
+    // Get first path element
+    new_tok = range_token(path_start, EVFS_PATH_SEPS, element);
+
+  } else {
+    new_tok = range_token(NULL, EVFS_PATH_SEPS, element);
+  }
+
+  return new_tok ? EVFS_OK : EVFS_ERR;
+}
+
+
