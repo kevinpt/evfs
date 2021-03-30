@@ -49,6 +49,7 @@ set(EVFS_LIB_SOURCE
   tar_fs.c
   tar_iter_rsrc.c
   tar_rsrc_fs.c
+  romfs_fs.c
 )
 
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
@@ -175,6 +176,24 @@ PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
 target_link_libraries(test_tar
+PRIVATE
+  evfs
+)
+
+
+#################### test_romfs ####################
+add_executable(test_romfs EXCLUDE_FROM_ALL test/test_romfs.c)
+target_sources(test_romfs
+PRIVATE
+  ${EVFS_PREFIX}/util/getopt_r.c
+  ${EVFS_PREFIX}/stdio_fs.c
+  test/hex_dump.c
+)
+target_include_directories(test_romfs
+PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+)
+target_link_libraries(test_romfs
 PRIVATE
   evfs
 )
