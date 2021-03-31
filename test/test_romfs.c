@@ -101,13 +101,14 @@ int main(int argc, char *argv[]) {
   evfs_register_trace("t_romfs", "romfs", treport, stderr, /*default*/ true);
 
 
+  // Test file reading
   EvfsFile *fh;
   evfs_set_cur_dir("/evfs/shim");
   status = evfs_open("../util/dhash.h", &fh, EVFS_READ);
 
-  char buf[64+1] = {0};
+  char buf[256+1] = {0};
 
-  for(int i = 0; i < 5; i++) {
+  for(int i = 0; i < 1; i++) {
     memset(buf, 0xAA, sizeof(buf));
     ptrdiff_t read_bytes = evfs_file_read(fh, buf, sizeof(buf)-1);
     printf("Read %ld bytes\n", read_bytes);
@@ -130,7 +131,7 @@ int main(int argc, char *argv[]) {
   EvfsDir *dh;
   EvfsInfo info;
   evfs_open_dir("/evfs", &dh);
-  printf("Read dir:\n");
+/*  printf("Read dir:\n");
   do {
     status = evfs_dir_read(dh, &info);
 
@@ -146,7 +147,7 @@ int main(int argc, char *argv[]) {
     if(status == EVFS_OK)
       printf("  '%s'  %d  %c\n", info.name, info.size, info.type & EVFS_FILE_DIR ? 'D' : ' ');
   } while(status != EVFS_DONE);
-
+*/
 
   evfs_dir_close(dh);
 
@@ -157,8 +158,10 @@ int main(int argc, char *argv[]) {
   evfs_stat("stdio_fs.h", &info);
   printf("Stat: %d  %c\n", info.size, info.type & EVFS_FILE_DIR ? 'D' : 'f');
 
-  evfs_stat("/evfs/util", &info);
-  printf("Stat: %d  %c\n", info.size, info.type & EVFS_FILE_DIR ? 'D' : 'f');
+  evfs_set_cur_dir("/");
+
+  status = evfs_stat("/", &info);
+  printf("Stat: %d  %d  %c\n", status, info.size, info.type & EVFS_FILE_DIR ? 'D' : 'f');
 
   return 0;
 }

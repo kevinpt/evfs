@@ -448,7 +448,7 @@ Returns:
   Hashed value of key
 */
 dhIKey dh_gen_hash_string(dhKey key) {
-  //printf("HASH STR: %d '%.*s'\n", key.length, key.length, key.data);
+  //printf("HASH STR: %ld '%.*s'", key.length, (int)key.length, (char *)key.data);
   char *str = (char *)key.data;
   // djb2 xor hash
   dhIKey h = 5381;
@@ -457,6 +457,8 @@ dhIKey dh_gen_hash_string(dhKey key) {
     key.length--;
     h = (h + (h << 5)) ^ str[key.length];
   }
+
+  //printf(" --> %08X\n", h);
 
   return h;
 }

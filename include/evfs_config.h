@@ -75,4 +75,14 @@ Embedded Virtual Filesystem
 // Shared buffers for the tar FS and tar resource FS
 #define EVFS_USE_TARFS_SHARED_BUFFER
 
+
+// Shared buffers for Romfs
+#define EVFS_USE_ROMFS_SHARED_BUFFER
+
+// When fast indexing is enabled, Romfs will look up file paths directly
+// by building a hash table index. If this option is disabled, files are
+// retrieved by walking the directory structures.
+#define EVFS_USE_ROMFS_FAST_INDEX
+
+
 #endif // EVFS_CONFIG_H
