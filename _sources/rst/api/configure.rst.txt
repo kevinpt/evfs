@@ -117,3 +117,15 @@ These are options spcific to various filesystems and shims
 
   Save memory by using a common shared buffer in the rotate shim driver.
 
+.. c:macro::  EVFS_USE_TARFS_SHARED_BUFFER
+
+  Save memory by using a common shared buffer in the tar fs drivers.
+
+.. c:macro::  EVFS_USE_ROMFS_SHARED_BUFFER
+
+  Save memory by using a common shared buffer in the Romfs driver.
+
+
+.. c:macro::  EVFS_USE_ROMFS_FAST_INDEX
+
+  Generate a hash table index for direct lookup of file paths. When disabled, the filesystem will walk the directory tree sequentially for file lookups.

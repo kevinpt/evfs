@@ -37,7 +37,7 @@
   <div class="section" id="filesystems">
 <h1>Filesystems<a class="headerlink" href="#filesystems" title="Permalink to this headline">¶</a></h1>
 <p>EVFS supports multiple filesystem interface backends. In addition to system level file access via C stdio and POSIX calls, the library can access
-FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. There are also two filesystems that can mount an archive in tar format stored on an existing VFS or as statically linked data. Each filesystem has a registration function that wraps <a class="reference internal" href="library.html#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>, adding the necessary arguments for configuration and constructing dynamic structures.</p>
+FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. There are also two filesystems that can mount an archive in tar format stored on an existing VFS or as statically linked data. The Linux Romfs image format can be used as a more compact read-only filesystem. Each filesystem has a registration function that wraps <a class="reference internal" href="library.html#c.evfs_register" title="evfs_register"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register()</span></code></a>, adding the necessary arguments for configuration and constructing dynamic structures.</p>
 <div class="section" id="stdio">
 <h2>Stdio<a class="headerlink" href="#stdio" title="Permalink to this headline">¶</a></h2>
 <p>EVFS implements a special “stdio” filesystem which uses the C file access API. Essentially everything that works with a <span class="xref c c-texpr">FILE*</span>. Directory operations are not supported by the C standard library so POSIX API calls are used for those features. If your target system does not support POSIX you can undefine <a class="reference internal" href="configure.html#c.EVFS_USE_STDIO_POSIX" title="EVFS_USE_STDIO_POSIX"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_STDIO_POSIX</span></code></a> in ‘evfs_config.h’ and work with limited functionality. There is only one “stdio” filesystem per process so you just need to register this once for all common file I/O.</p>
@@ -132,8 +132,8 @@ void <code class="sig-name descname">fatfs_unmount_image</code><span class="sig-
 </dd></dl>
 
 <p>If you need a new image, one can be prepared using <a class="reference internal" href="#c.fatfs_make_image" title="fatfs_make_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_make_image()</span></code></a>. This will not alter an existing image file. When the image is ready you mount it within FatFs using <a class="reference internal" href="#c.fatfs_mount_image" title="fatfs_mount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_mount_image()</span></code></a>. At this point the image is associated with a FatFs volume number. You can then register a FatFs instance using that volume number. The contents of the image can then be read and modified as usual using the EVFS API. When done with the image you should unmount it within FatFs using <a class="reference internal" href="#c.fatfs_unmount_image" title="fatfs_unmount_image"><code class="xref c c-func docutils literal notranslate"><span class="pre">fatfs_unmount_image()</span></code></a>.</p>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Using a FatFs image file</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Using a FatFs image file</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
@@ -248,8 +248,8 @@ void <code class="sig-name descname">littlefs_unmount_image</code><span class="s
 </dd></dl>
 
 <p>Image handling functions are similar to those for FatFs. All callback functions are supplied in the <code class="xref c c-type docutils literal notranslate"><span class="pre">lfs_config</span></code> struct.</p>
-<div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">Using a littlefs image file</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">Using a littlefs image file</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
 <span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
@@ -396,6 +396,53 @@ int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class=
 </dd></dl>
 
 </div>
+<div class="section" id="romfs">
+<span id="id4"></span><h2>Romfs<a class="headerlink" href="#romfs" title="Permalink to this headline">¶</a></h2>
+<p>The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure.</p>
+<p>The <a class="reference internal" href="#c.evfs_register_romfs" title="evfs_register_romfs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_romfs()</span></code></a> function is used to mount a Romfs image. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the <a class="reference external" href="https://github.com/chexum/genromfs">genromfs</a> program which is available in most Linux distros.</p>
+<p>There is a configuration option <a class="reference internal" href="configure.html#c.EVFS_USE_ROMFS_FAST_INDEX" title="EVFS_USE_ROMFS_FAST_INDEX"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_ROMFS_FAST_INDEX</span></code></a> that lets you control the generation of a hash table index. When enabled, path lookups are O(1) through a hash table. When disabled, files are found by walking the directory tree.</p>
+<p>Unlike the tar fs implementation, the Romfs driver supports directory operations. You can create an <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsDir</span></code> object and list directory contents like any other filesystem.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; genromfs -d image_dir -f my_image.romfs -V MyImage -v
+</pre></div>
+</div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/romfs_fs.h&quot;</span><span class="cp"></span>
+
+<span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+<span class="n">EvfsFile</span> <span class="o">*</span><span class="n">image</span><span class="p">;</span>
+
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;my_image.romfs&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">image</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span> <span class="c1">// Open image on stdio</span>
+
+<span class="c1">// Mount image and make it default for future VFS access</span>
+<span class="n">evfs_register_romfs</span><span class="p">(</span><span class="s">&quot;romfs&quot;</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+
+<span class="n">EvfsFile</span> <span class="n">fh</span><span class="p">;</span>
+<span class="n">evfs_open</span><span class="p">(</span><span class="s">&quot;foo.txt&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fh</span><span class="p">,</span> <span class="n">EVFS_READ</span><span class="p">);</span> <span class="c1">// Open file on Romfs image</span>
+<span class="p">...</span>
+<span class="n">evfs_file_close</span><span class="p">(</span><span class="n">fh</span><span class="p">);</span>
+
+<span class="c1">// Image file is closed when VFS is unregistered</span>
+</pre></div>
+</div>
+<dl class="c function">
+<dt id="c.evfs_register_romfs">
+int <code class="sig-name descname">evfs_register_romfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, EvfsFile *<em>image</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_romfs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a Romfs instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>image</strong> – Mounted Romfs image</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
 </div>
 
 
@@ -443,6 +490,7 @@ int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class=
 <li><a class="reference internal" href="#littlefs">littlefs</a></li>
 <li><a class="reference internal" href="#tar-fs">Tar FS</a></li>
 <li><a class="reference internal" href="#tar-resource-fs">Tar resource FS</a></li>
+<li><a class="reference internal" href="#romfs">Romfs</a></li>
 </ul>
 </li>
 </ul>
