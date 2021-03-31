@@ -15,8 +15,7 @@ The EVFS library is inspired by the VFS system used in SQLite but implements a m
   EVFS architecture
 
 EVFS comes with filesystem interface wrappers that support C stdio, `FatFs <http://elm-chan.org/fsw/ff/00index_e.html>`_,
-and `littlefs <https://github.com/littlefs-project/littlefs>`_ as the backend filesystems. Vendored copies of FatFs and Littlefs have been included for ease of development but you can use your own instances of these libraries as needed. FatFs and Littlefs image files can be mounted on top of any other EVFS filesystem. This allows you to develop on a PC and work with data in the same filesystem as the target application.
-
+and `littlefs <https://github.com/littlefs-project/littlefs>`_ as the backend filesystems. Vendored copies of FatFs and Littlefs have been included for ease of development but you can use your own instances of these libraries as needed. FatFs and Littlefs image files can be mounted on top of any other EVFS filesystem. This allows you to develop on a PC and work with data in the same filesystem as the target application. EVFS also supports the Linux :ref:`Romfs <romfs>` and uncompressed :ref:`tar file data <tar-fs>` as read only filesystems.
 
 
 See the :doc:`EVFS library reference <rst/api/library>` for detailed documentation.

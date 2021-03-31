@@ -3,7 +3,7 @@ Filesystems
 ===========
 
 EVFS supports multiple filesystem interface backends. In addition to system level file access via C stdio and POSIX calls, the library can access
-FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. There are also two filesystems that can mount an archive in tar format stored on an existing VFS or as statically linked data. Each filesystem has a registration function that wraps :c:func:`evfs_register`, adding the necessary arguments for configuration and constructing dynamic structures.
+FatFs and littlefs filesystems either directly from their storage media or mounted as images within another EVFS filesystem. There are also two filesystems that can mount an archive in tar format stored on an existing VFS or as statically linked data. The Linux Romfs image format can be used as a more compact read-only filesystem. Each filesystem has a registration function that wraps :c:func:`evfs_register`, adding the necessary arguments for configuration and constructing dynamic structures.
 
 
 Stdio
@@ -234,4 +234,52 @@ File data can be accessed using the usual EVFS API with :c:func:`evfs_file_read`
 
   :return: EVFS_OK on success
 
+
+.. _romfs:
+
+Romfs
+-----
+
+The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure.
+
+The :c:func:`evfs_register_romfs` function is used to mount a Romfs image. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the `genromfs <https://github.com/chexum/genromfs>`_ program which is available in most Linux distros.
+
+There is a configuration option :c:macro:`EVFS_USE_ROMFS_FAST_INDEX` that lets you control the generation of a hash table index. When enabled, path lookups are O(1) through a hash table. When disabled, files are found by walking the directory tree.
+
+Unlike the tar fs implementation, the Romfs driver supports directory operations. You can create an :c:type:`EvfsDir` object and list directory contents like any other filesystem.
+
+.. code-block:: sh
+
+  > genromfs -d image_dir -f my_image.romfs -V MyImage -v
+ 
+.. code-block:: c
+
+  #include "evfs.h"
+  #include "evfs/romfs_fs.h"
+
+  evfs_register_stdio(/*default*/ true);
+  EvfsFile *image;
+
+  evfs_open("my_image.romfs", &image, EVFS_READ); // Open image on stdio
+
+  // Mount image and make it default for future VFS access
+  evfs_register_romfs("romfs", image, /*default*/ true);
+
+  EvfsFile fh;
+  evfs_open("foo.txt", &fh, EVFS_READ); // Open file on Romfs image
+  ...
+  evfs_file_close(fh);
+
+  // Image file is closed when VFS is unregistered
+
+
+.. c:function:: int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
+
+  Register a Romfs instance
+
+  :param vfs_name:      Name of new VFS
+  :param image:         Mounted Romfs image
+  :param default_vfs:   Make this the default VFS when true
+
+  :return: EVFS_OK on success
 
