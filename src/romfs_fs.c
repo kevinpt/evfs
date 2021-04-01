@@ -49,8 +49,6 @@ Embedded Virtual Filesystem
 
 typedef struct RomfsData {
   Evfs       *vfs;
-//  EvfsFile   *image;
-//  evfs_off_t  root_dir;
 
   char      cur_dir[EVFS_MAX_PATH];
 #ifdef EVFS_USE_ROMFS_SHARED_BUFFER
@@ -59,11 +57,6 @@ typedef struct RomfsData {
 #ifdef USE_ROMFS_LOCK
   EvfsLock  romfs_lock; // Serialize access to shared abs_path buffer
 #endif
-
-//#ifdef EVFS_USE_ROMFS_FAST_INDEX
-//  RomfsIndex  fast_index;
-//#endif
-//  LookupMethod lookup_abs_path;
 
   Romfs romfs;
 
@@ -143,7 +136,6 @@ static int make_absolute_path(Evfs *vfs, const char *path, char **absolute, bool
 #else
 #  define FREE_ABS(abs_path)  evfs_free(abs_path)
 #endif
-
 
 
 
