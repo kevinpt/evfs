@@ -14,6 +14,16 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import re
+def parse_build_version(fname):
+  with open(fname, 'r') as fh:
+    for ln in fh.readlines():
+      m = re.match(r'^#define\s+\w+_VERSION\s+"(.*)"', ln)
+      if(m):
+        return m.group(1)
+
+  return '1.0.0'
+
 
 # -- Project information -----------------------------------------------------
 
@@ -22,8 +32,8 @@ copyright = '2020, Kevin Thibedeau'
 author = 'Kevin Thibedeau'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
-
+release = parse_build_version('../include/evfs/evfs_build_config.h')
+print('BUILD RELEASE:', release)
 
 # -- General configuration ---------------------------------------------------
 

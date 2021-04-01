@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13.4)
-project(evfs VERSION 1.0.0 LANGUAGES C)
+project(evfs VERSION 1.1.0 LANGUAGES C)
 
 set (CMAKE_C_STANDARD 11)
 set (CMAKE_C_STANDARD_REQUIRED ON)

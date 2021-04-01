@@ -1,8 +1,10 @@
 // Generated from evfs_build_config.h.in by Cmake
 
+#define EVFS_VERSION  "@PROJECT_VERSION@"
 
 
 // Thread library
 #cmakedefine USE_C11_THREADS
 
 #cmakedefine USE_PTHREADS
+
