@@ -21,13 +21,11 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 
-#include "evfs/util/unaligned_access.h"
-
 #ifdef EVFS_USE_ROMFS_FAST_INDEX
 #  include "evfs/util/dhash.h"
 #endif
 
-//#include "../test/hex_dump.h"
+#include "evfs/romfs_common.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -47,58 +45,12 @@ Embedded Virtual Filesystem
 #endif
 
 
-#define ROMFS_MAX_NAME_LEN 32
-
-#define ROMFS_MAX_HEADER_SIZE ((16 + ROMFS_MAX_NAME_LEN + 15) & ~0xF)
-#define ROMFS_MIN_HEADER_SIZE (16 + 2)
-
-// Header for file entries
-typedef struct RomfsFileHead {
-  uint32_t offset; // next file header in binary format
-  uint32_t spec_info;
-  uint32_t size;
-  uint32_t header_len; // This is the checksum in the romfs binary format
-  char file_name[ROMFS_MAX_NAME_LEN];
-} RomfsFileHead;
-
-#define FILE_MODE_MASK  0x0F
-#define FILE_TYPE_MASK  0x07
-#define FILE_EX_MASK    0x08
-
-#define FILE_OFFSET(hdr) ((hdr)->offset & ~0xF)
-#define FILE_TYPE(hdr) ((hdr)->offset & FILE_TYPE_MASK)
-#define FILE_MODE(hdr) ((hdr)->offset & FILE_MODE_MASK)
-
-#define FILE_TYPE_HARD_LINK     0
-#define FILE_TYPE_DIRECTORY     1
-#define FILE_TYPE_REGULAR_FILE  2
-#define FILE_TYPE_SYM_LINK      3
-#define FILE_TYPE_BLOCK_DEV     4
-#define FILE_TYPE_CHAR_DEV      5
-#define FILE_TYPE_SOCKET        6
-#define FILE_TYPE_FIFO          7
-
-
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-typedef struct RomfsIndex {
-  dhash hash_table; // Manages index of hashed key/value pairs
-
-  // Storage for file path keys
-  char *keys;
-} RomfsIndex;
-#endif
-
-// Dynamic callback for performing file lookups
-// This lets us switch to a hash table lookup after an index is built.
-struct RomfsData;
-
-typedef int (*LookupMethod)(struct RomfsData *fs, const char *path, RomfsFileHead *hdr);
 
 
 typedef struct RomfsData {
   Evfs       *vfs;
-  EvfsFile   *image;
-  evfs_off_t  root_dir;
+//  EvfsFile   *image;
+//  evfs_off_t  root_dir;
 
   char      cur_dir[EVFS_MAX_PATH];
 #ifdef EVFS_USE_ROMFS_SHARED_BUFFER
@@ -108,14 +60,17 @@ typedef struct RomfsData {
   EvfsLock  romfs_lock; // Serialize access to shared abs_path buffer
 #endif
 
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-  RomfsIndex  fast_index;
-#endif
-  LookupMethod lookup_abs_path;
+//#ifdef EVFS_USE_ROMFS_FAST_INDEX
+//  RomfsIndex  fast_index;
+//#endif
+//  LookupMethod lookup_abs_path;
+
+  Romfs romfs;
 
   // VFS config options
   unsigned cfg_no_dir_dots :1; // EVFS_CMD_SET_NO_DIR_DOTS
 } RomfsData;
+
 
 typedef struct RomfsFile {
   EvfsFile      base;
@@ -135,8 +90,6 @@ typedef struct RomfsDir {
   RomfsFileHead cur_file;
   bool          is_reset;
 } RomfsDir;
-
-
 
 
 // Helper to convert relative paths into absolute for the Romfs API
@@ -192,410 +145,6 @@ static int make_absolute_path(Evfs *vfs, const char *path, char **absolute, bool
 #endif
 
 
-// ******************** Romfs core ********************
-
-static inline int file_header_len(RomfsFileHead *hdr) {
-  // Header = 16 bytes + file_name
-  // Round up to 16-byte boundary
-  return (16 + strnlen(hdr->file_name, ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
-}
-
-
-// Read Romfs file header from image
-static bool romfs__read_file_header(RomfsData *fs, long hdr_pos, RomfsFileHead *hdr) {
-  evfs_file_seek(fs->image, hdr_pos, EVFS_SEEK_TO);
-
-  memset(hdr, 0, sizeof(*hdr));
-
-  ptrdiff_t buf_len = evfs_file_read(fs->image, hdr, sizeof(*hdr));
-  if(buf_len < ROMFS_MIN_HEADER_SIZE)
-    return false;
-
-  int header_len = file_header_len(hdr);
-
-  // Verify checksum
-  int32_t checksum = 0;
-  for(int i = 0; i < header_len / 4; i++) {
-    checksum += get_unaligned_be(&((uint32_t *)hdr)[i]);
-  }
-
-  if(checksum != 0)
-    return false;
-
-  hdr->offset       = get_unaligned_be(&hdr->offset);
-  hdr->spec_info    = get_unaligned_be(&hdr->spec_info);
-  hdr->size         = get_unaligned_be(&hdr->size);
-  hdr->header_len   = header_len; // Overwrite checksum
-
-  return true;
-}
-
-// Scan a directory for file from a path
-static bool romfs__find_path_elem(RomfsData *fs, evfs_off_t dir_pos, StringRange *element, RomfsFileHead *hdr) {
-  evfs_off_t cur_hdr = dir_pos;
-
-  while(cur_hdr != 0) {
-    if(!romfs__read_file_header(fs, cur_hdr, hdr))
-      break;
-
-    if(range_eq(element, hdr->file_name)) {
-      hdr->offset = cur_hdr | FILE_MODE(hdr); // Replace with offset of the element
-      return true;
-    }
-
-    cur_hdr = FILE_OFFSET(hdr);
-  }
-
-  return false;
-}
-
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-// Fast path lookups using a hash table
-static int romfs__fast_lookup_abs_path(RomfsData *fs, const char *path, RomfsFileHead *hdr) {
-  int status;
-
-  // Lookup path in fast index
-  dhKey key;
-  key.data = &path[1]; // Skip leading '/'
-  key.length = strlen(key.data);
-
-  alignas(uintptr_t) evfs_off_t entry;
-  if(dh_lookup(&fs->fast_index.hash_table, key, &entry)) {
-    romfs__read_file_header(fs, entry, hdr);
-    //DPRINT("## FAST LOOKUP: @ %08X %08X %s -> '%s'", entry, FILE_OFFSET(hdr), path, hdr->file_name);
-    hdr->offset = entry | FILE_MODE(hdr); // Replace with offset of the element
-    status = EVFS_OK;
-  } else {
-    status = EVFS_ERR_NO_PATH;
-  }
-
-  return status;
-}
-#endif
-
-
-// Lookup paths by walking the directory tree
-static int romfs__lookup_abs_path(RomfsData *fs, const char *path, RomfsFileHead *hdr) {
-  evfs_off_t dir_pos = fs->root_dir;
-
-  StringRange element;
-
-  int status = evfs_vfs_scan_path(fs->vfs, path, &element); // Get first element in path
-  bool end_scan;
-
-  if(status != EVFS_OK) { // Assume this is the root path
-    return romfs__read_file_header(fs, dir_pos, hdr) ? EVFS_OK : EVFS_ERR_NO_PATH;
-  }
-
-  while(status == EVFS_OK) {
-    int file_type = -1;
-    end_scan = false;
-
-    if(romfs__find_path_elem(fs, dir_pos, &element, hdr)) {
-      file_type = FILE_TYPE(hdr);
-      switch(file_type) {
-
-      case FILE_TYPE_HARD_LINK:
-        dir_pos = hdr->spec_info;  // Follow link dest
-        romfs__read_file_header(fs, dir_pos, hdr); // Reparse header (should never fail)
-        dir_pos = hdr->spec_info; // First file in dir
-        //DPRINT("FOLLOW LINK: %08X", dir_pos);
-        break;
-
-      case FILE_TYPE_DIRECTORY:
-        dir_pos = hdr->spec_info; // First file in dir
-        //DPRINT("FOLLOW DIR: %.*s  %08X --> %08X", RANGE_FMT(&element), FILE_OFFSET(hdr), dir_pos);
-        break;
-
-      default: // Should be last element of path
-        end_scan = true;
-        break;
-      }
-
-    } else { // No match for element
-      return EVFS_ERR_NO_PATH;
-    }
-
-    status = evfs_vfs_scan_path(fs->vfs, NULL, &element); // Get next element in path
-
-    if(end_scan) { // Element is not a directory or link
-      // If we terminated path on last element then status should be EVFS_ERR
-      return (status == EVFS_ERR) ? EVFS_OK : EVFS_ERR_NO_PATH;
-
-    } else { // A directory or link
-      if(status == EVFS_ERR) // If path scan terminated we are done
-        return EVFS_OK;
-    }
-  }
-
-  return status;
-}
-
-
-static int romfs__image_validate(RomfsData *fs) {
-  evfs_file_rewind(fs->image);
-
-  // Superblock covers first 512 bytes.
-  // We will read it in chunks to reduce stack usage.
-#define SUPERBLOCK_LEN  512
-#define CHUNK_LEN       64
-  uint32_t buf[CHUNK_LEN/4];
-
-  ptrdiff_t buf_len = evfs_file_read(fs->image, buf, 4*COUNT_OF(buf));
-  if(ASSERT(buf_len >= ROMFS_MIN_HEADER_SIZE, "Romfs too small"))
-    return EVFS_ERR_INVALID;
-
-  // Force magic number string to little-endian
-  if(get_unaligned_le(&buf[0]) == 0x6D6F722D && get_unaligned_le(&buf[1]) == 0x2D736631) {
-    uint32_t fs_bytes = get_unaligned_be(&buf[2]);
-
-    if(ASSERT(fs_bytes <= evfs_file_size(fs->image), "Invalid Romfs size"))
-      return EVFS_ERR_INVALID;
-
-    // Iterate over chunks to verify checksum
-    int32_t checksum = 0;
-
-    for(int c = 0; c < SUPERBLOCK_LEN / CHUNK_LEN; c++) {
-      buf_len /= 4;
-      for(int i = 0; i < buf_len; i++) {
-        checksum += get_unaligned_be(&buf[i]);
-      }
-
-      buf_len = evfs_file_read(fs->image, buf, 4*COUNT_OF(buf));
-      if(buf_len <= 0)
-        break;
-    }
-
-    if(checksum == 0) { // Valid superblock
-      // Read first chunk again
-      evfs_file_rewind(fs->image);
-      buf_len = evfs_file_read(fs->image, buf, 4*COUNT_OF(buf));
-
-      char *vol_name = (char *)&buf[4];
-      //DPRINT("VOLUME: '%s'", vol_name);
-
-      // Root dir starts at first file header
-      fs->root_dir = (16 + strnlen(vol_name, ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
-      return EVFS_OK;
-    }
-  }
-
-  return EVFS_ERR_INVALID;
-}
-
-
-// ******************** Fast hashed index ********************
-
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-
-static void destroy_hashed_file(dhKey key, void *value, void *ctx) {
-}
-
-
-static bool equal_hash_keys(dhKey key1, dhKey key2, void *ctx) {
-  if(key1.length != key2.length) return false;
-
-  const char *p1 = key1.data;
-  const char *p2 = key2.data;
-
-  while(key1.length) {
-    if(*p1++ != *p2++) return false;
-    key1.length--;
-  }
-
-  return true;
-}
-
-
-static int romfs__fast_index_init(RomfsIndex *ht, int total_files, size_t total_path_len) {
-  dhConfig s_hash_init = {
-    .init_buckets = total_files,
-    .value_size   = sizeof(evfs_off_t),
-
-    .destroy_item = destroy_hashed_file,
-    .gen_hash     = dh_gen_hash_string,
-    .is_equal     = equal_hash_keys
-  };
-
-  ht->keys = evfs_malloc(total_path_len);
-  if(MEM_CHECK(ht->keys)) return EVFS_ERR_ALLOC;
-
-
-  int err = dh_init(&ht->hash_table, &s_hash_init, NULL) ? EVFS_OK : EVFS_ERR;
-  return err;
-}
-
-
-static void romfs__fast_index_free(RomfsIndex *ht) {
-  dh_free(&ht->hash_table);
-  evfs_free(ht->keys);
-  ht->keys = NULL;
-}
-
-
-// Recursively scan the filesystem and collect stats on all paths
-static size_t scan_dir_tree(Evfs *vfs, const char *path, size_t prefix_len, int *total_files) {
-  EvfsDir *dir;
-  EvfsInfo info;
-  int status;
-
-  size_t total_path_len = 0;
-
-  status = evfs_vfs_open_dir(vfs, path, &dir);
-  //DPRINT("OPEN DIR: %s %d", path, status);
-
-  do {
-    status = evfs_dir_read(dir, &info);
-    if(status == EVFS_OK) {
-      //RomfsDir *rdir = (RomfsDir *)dir;
-      //DPRINT("  '%s'  %08X  %08X", info.name, rdir->cur_file_offset, rdir->cur_file.offset);
-      (*total_files)++;
-
-      if(info.type & EVFS_FILE_DIR) {
-        // Build path to sub directory
-        size_t new_prefix_len = prefix_len + 1 + strlen(info.name);
-        total_path_len += new_prefix_len; // Entry for the directory
-
-        char *sub_path = malloc(new_prefix_len+1);
-        if(MEM_CHECK(sub_path)) return 0;
-
-        AppendRange sub_path_r;
-        range_init(&sub_path_r, sub_path, new_prefix_len+1);
-        range_cat_str(&sub_path_r, path);
-        range_cat_char(&sub_path_r, '/');
-        range_cat_str(&sub_path_r, info.name);
-
-        //DPRINT("SUB PATH: '%s'  %08X", sub_path, rdir->cur_file_offset);
-        total_path_len += scan_dir_tree(vfs, sub_path, new_prefix_len, total_files);
-        free(sub_path);
-
-      } else { // Normal file
-        total_path_len += prefix_len + 1 + strlen(info.name);
-      }
-    }
-  } while(status == EVFS_OK);
-
-  evfs_dir_close(dir);
-
-  return total_path_len;
-}
-
-
-// Recursively scan the filesystem to add hash table indices
-static int index_dir_tree(Evfs *vfs, const char *path, size_t prefix_len, RomfsIndex *ht, AppendRange *keys_r) {
-  EvfsDir *dir;
-  EvfsInfo info;
-  int status;
-  dhKey key;
-  alignas(uintptr_t) evfs_off_t entry;
-
-  //size_t total_path_len = 0;
-
-  status = evfs_vfs_open_dir(vfs, path, &dir);
-  //DPRINT("INDEX, OPEN DIR: %s %d", path, status);
-
-  // Prepare key
-  key.data = keys_r->start;
-  key.length = 0;
-
-  if(prefix_len > 0)
-    key.length += range_cat_str(keys_r, &path[1]); // Skip leading '/'
-  else
-    key.length += range_cat_str(keys_r, "");
-  range_cat_char(keys_r,'\0');
-
-  entry = ((RomfsDir *)dir)->dir_pos;
-  if(!dh_insert(&ht->hash_table, key, &entry))
-    return EVFS_ERR;
-
-  //DPRINT("## INDEX DIR: '%s' @ %08X", key.data, entry);
-
-  do {
-    status = evfs_dir_read(dir, &info);
-    if(status == EVFS_OK) {
-      //DPRINT("  '%s'", info.name);
-
-      if(info.type & EVFS_FILE_DIR) {
-        // Build path to sub directory
-        size_t new_prefix_len = prefix_len + 1 + strlen(info.name);
-        //total_path_len += new_prefix_len + 1; // Entry for the directory
-
-        char *sub_path = malloc(new_prefix_len+1);
-        if(MEM_CHECK(sub_path)) return EVFS_ERR_ALLOC;
-
-        AppendRange sub_path_r;
-        range_init(&sub_path_r, sub_path, new_prefix_len+1);
-        range_cat_str(&sub_path_r, path);
-        range_cat_char(&sub_path_r, '/');
-        range_cat_str(&sub_path_r, info.name);
-
-        //DPRINT("SUB PATH: '%s'", sub_path);
-
-        index_dir_tree(vfs, sub_path, new_prefix_len, ht, keys_r);
-        free(sub_path);
-
-      } else { // Normal file
-        // Prepare key
-        key.data = keys_r->start;
-        key.length = 0;
-
-        if(prefix_len > 0) {
-          key.length += range_cat_str(keys_r, &path[1]); // Skip leading '/'
-          key.length += range_cat_char(keys_r,'/');
-        }
-        key.length += range_cat_str(keys_r, info.name);
-        range_cat_char(keys_r,'\0');
-
-        entry = ((RomfsDir *)dir)->cur_file_offset;
-        if(!dh_insert(&ht->hash_table, key, &entry))
-          return EVFS_ERR;
-
-        //DPRINT("## INDEX FIL: %s @ %08X", key.data, entry);
-      }
-    }
-  } while(status == EVFS_OK);
-
-  evfs_dir_close(dir);
-
-  return EVFS_OK;
-}
-
-
-static int romfs__build_index(RomfsData *fs_data, RomfsIndex *ht) {
-  unsigned no_dots = 1;
-  evfs_vfs_ctrl_ex(EVFS_CMD_SET_NO_DIR_DOTS, &no_dots, fs_data->vfs->vfs_name);
-
-  // Scan all files to get total storage for path keys
-  int status;
-
-  size_t total_path_len = 0;
-  int total_files = 0;
-
-  total_path_len = scan_dir_tree(fs_data->vfs, "", 0, &total_files);
-  // Add space for root entry
-  total_files++;
-  total_path_len += 1;
-
-  // Prepare the hash index
-  status = romfs__fast_index_init(ht, total_files, total_path_len);
-  if(status == EVFS_OK) {
-    AppendRange keys_r;
-    range_init(&keys_r, ht->keys, total_path_len);
-
-    status = index_dir_tree(fs_data->vfs, "", 0, ht, &keys_r);
-    //dump_array((uint8_t *)ht->keys, total_path_len);
-
-    fs_data->lookup_abs_path = romfs__fast_lookup_abs_path;
-  }
-
-
-  no_dots = 0; // Restore default
-  evfs_vfs_ctrl_ex(EVFS_CMD_SET_NO_DIR_DOTS, &no_dots, fs_data->vfs->vfs_name);
-
-  return status;
-}
-
-#endif // EVFS_USE_ROMFS_FAST_INDEX
 
 
 
@@ -625,9 +174,9 @@ static ptrdiff_t romfs__file_read(EvfsFile *fh, void *buf, size_t size) {
     size = remaining;
 
   LOCK();
-  evfs_file_seek(fs_data->image, FILE_OFFSET(&fil->hdr) + fil->hdr.header_len + fil->read_pos, EVFS_SEEK_TO);
+  evfs_off_t data_offset = FILE_OFFSET(&fil->hdr) + fil->hdr.header_len + fil->read_pos;
+  ptrdiff_t rval = romfs_read(&fs_data->romfs, data_offset, buf, size);
   fil->read_pos += size;
-  ptrdiff_t rval = evfs_file_read(fs_data->image, buf, size);
   UNLOCK();
 
   //DPRINT("## READ: @ %ld,  %ld  '%02X'", fil->read_pos-size, size, *((uint8_t *)buf));
@@ -715,13 +264,13 @@ static int romfs__dir_read(EvfsDir *dh, EvfsInfo *info) {
 
   // Advance to next directory
   if(dir->is_reset) { // Init iterator
-    romfs__read_file_header(fs_data, dir->dir_pos, &dir->cur_file);
+    romfs_read_file_header(&fs_data->romfs, dir->dir_pos, &dir->cur_file);
     next_entry = dir->cur_file.spec_info;
     dir->is_reset = false;
 
     if(fs_data->cfg_no_dir_dots) { // Skip over hard links
-      romfs__read_file_header(fs_data, next_entry, &dir->cur_file); // Skip "."
-      romfs__read_file_header(fs_data, FILE_OFFSET(&dir->cur_file), &dir->cur_file); // Skip ".."
+      romfs_read_file_header(&fs_data->romfs, next_entry, &dir->cur_file); // Skip "."
+      romfs_read_file_header(&fs_data->romfs, FILE_OFFSET(&dir->cur_file), &dir->cur_file); // Skip ".."
       next_entry = FILE_OFFSET(&dir->cur_file);
     }
 
@@ -731,7 +280,7 @@ static int romfs__dir_read(EvfsDir *dh, EvfsInfo *info) {
 
   if(next_entry > 0) {
     dir->cur_file_offset = next_entry;
-    status = romfs__read_file_header(fs_data, next_entry, &dir->cur_file) ? EVFS_OK : EVFS_DONE;
+    status = romfs_read_file_header(&fs_data->romfs, next_entry, &dir->cur_file) ? EVFS_OK : EVFS_DONE;
 
   } else { // Iteration complete
     status = EVFS_DONE;
@@ -778,11 +327,11 @@ static inline int romfs__lookup_path(Evfs *vfs, RomfsData *fs_data, const char *
   int status;
 
   if(evfs_vfs_path_is_absolute(vfs, path)) {
-    status = fs_data->lookup_abs_path(fs_data, path, hdr);
+    status = romfs_lookup_abs_path(&fs_data->romfs, path, hdr);
 
   } else { // Convert relative path
     MAKE_ABS(path, abs_path);
-    status = fs_data->lookup_abs_path(fs_data, abs_path, hdr);
+    status = romfs_lookup_abs_path(&fs_data->romfs, abs_path, hdr);
     FREE_ABS(abs_path);
   }
 
@@ -921,10 +470,7 @@ static int romfs__vfs_ctrl(Evfs *vfs, int cmd, void *arg) {
 
   switch(cmd) {
     case EVFS_CMD_UNREGISTER:
-      evfs_file_close(fs_data->image);
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-      romfs__fast_index_free(&fs_data->fast_index);
-#endif
+      romfs_unmount(&fs_data->romfs);
 #ifdef USE_ROMFS_LOCK
       evfs__lock_destroy(&fs_data->romfs_lock);
 #endif
@@ -957,6 +503,18 @@ static int romfs__vfs_ctrl(Evfs *vfs, int cmd, void *arg) {
   }
 }
 
+
+// Callbacks for image based Romfs
+void romfs_unmount_image(Romfs *fs) {
+  EvfsFile *image = (EvfsFile *)fs->ctx;
+  evfs_file_close(image);
+}
+
+ptrdiff_t romfs_read_image(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
+  EvfsFile *image = (EvfsFile *)fs->ctx;
+  evfs_file_seek(image, offset, EVFS_SEEK_TO);
+  return evfs_file_read(image, buf, size);
+}
 
 
 // Access objects allocated in a single block of memory
@@ -992,9 +550,8 @@ int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
   strcpy((char *)new_vfs->vfs_name, vfs_name);
 
   // Init FS data
-  fs_data->image  = image;
-  fs_data->vfs    = new_vfs;
-  fs_data->lookup_abs_path = romfs__lookup_abs_path;
+  fs_data->vfs = new_vfs;
+
   strncpy(fs_data->cur_dir, "/", 2); // Start in root dir
 
   // Init VFS
@@ -1019,20 +576,18 @@ int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
   }
 #endif
 
-  // Validate image superblock
-  int status = romfs__image_validate(fs_data);
+
+  RomfsConfig cfg = {
+    .ctx        = image,
+    .total_size = evfs_file_size(image),
+    .read_data  = romfs_read_image,
+    .unmount    = romfs_unmount_image
+  };
+  int status = romfs_init(&fs_data->romfs, &cfg);
   if(status != EVFS_OK)
     return status;
 
-  status = evfs_register(new_vfs, default_vfs);
-
-#ifdef EVFS_USE_ROMFS_FAST_INDEX
-  if(status == EVFS_OK) {
-    romfs__build_index(fs_data, &fs_data->fast_index);
-  }
-#endif
-
-  return status;
+  return evfs_register(new_vfs, default_vfs);
 }
 
 

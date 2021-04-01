@@ -49,6 +49,7 @@ set(EVFS_LIB_SOURCE
   tar_fs.c
   tar_iter_rsrc.c
   tar_rsrc_fs.c
+  romfs_common.c
   romfs_fs.c
 )
 
