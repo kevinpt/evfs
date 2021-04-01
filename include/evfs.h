@@ -40,10 +40,10 @@ Embedded Virtual Filesystem
 
 
 
-typedef struct Evfs_s Evfs;
-typedef struct EvfsFile_s EvfsFile;
-typedef struct EvfsDir_s EvfsDir;
-typedef struct EvfsInfo_s EvfsInfo;
+typedef struct Evfs Evfs;
+typedef struct EvfsFile EvfsFile;
+typedef struct EvfsDir EvfsDir;
+typedef struct EvfsInfo EvfsInfo;
 
 
 // Type for working with file sizes and offsets
@@ -56,8 +56,8 @@ typedef struct EvfsInfo_s EvfsInfo;
 
 
 // Base class for VFS wrappers
-typedef struct Evfs_s {
-  struct Evfs_s *next;
+typedef struct Evfs {
+  struct Evfs *next;
   const char *vfs_name;
   size_t vfs_file_size;
   size_t vfs_dir_size;
@@ -92,7 +92,7 @@ typedef enum {
 
 
 // Virtual methods for EvfsFile
-typedef struct EvfsFileMethods_s {
+typedef struct EvfsFileMethods {
   int       (*m_ctrl)(EvfsFile *fh, int cmd, void *arg);
   int       (*m_close)(EvfsFile *fh);
   ptrdiff_t (*m_read)(EvfsFile *fh, void *buf, size_t size);
@@ -107,14 +107,14 @@ typedef struct EvfsFileMethods_s {
 
 
 // Base class for file objects
-struct EvfsFile_s {
+struct EvfsFile {
   const EvfsFileMethods *methods;
 };
 
 
 
 // File information reported by evfs_stat() and evfs_dir_read()
-typedef struct EvfsInfo_s {
+typedef struct EvfsInfo {
   char       *name;
   time_t      mtime;
   evfs_off_t  size;
@@ -126,7 +126,7 @@ typedef struct EvfsInfo_s {
 
 
 // Virtual methods for directory objects
-typedef struct EvfsDirMethods_s {
+typedef struct EvfsDirMethods {
   int    (*m_close)(EvfsDir *dh);
   int    (*m_read)(EvfsDir *dh, EvfsInfo *info);
   int    (*m_rewind)(EvfsDir *dh);
@@ -134,7 +134,7 @@ typedef struct EvfsDirMethods_s {
 
 
 // Base class for directory objects
-struct EvfsDir_s {
+struct EvfsDir {
   const EvfsDirMethods *methods;
 };
 
