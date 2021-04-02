@@ -496,35 +496,12 @@ static int romfs__vfs_ctrl(Evfs *vfs, int cmd, void *arg) {
 }
 
 
-// Callbacks for image based Romfs
-void romfs_unmount_image(Romfs *fs) {
-  EvfsFile *image = (EvfsFile *)fs->ctx;
-  evfs_file_close(image);
-}
-
-ptrdiff_t romfs_read_image(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
-  EvfsFile *image = (EvfsFile *)fs->ctx;
-  evfs_file_seek(image, offset, EVFS_SEEK_TO);
-  return evfs_file_read(image, buf, size);
-}
-
 
 // Access objects allocated in a single block of memory
 #define NEXT_OBJ(o) (&(o)[1])
 
-/*
-Register a Romfs instance
 
-Args:
-  vfs_name:      Name of new VFS
-  image:         Mounted Romfs image
-  default_vfs:   Make this the default VFS when true
-
-Returns:
-  EVFS_OK on success
-*/
-int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs) {
-  if(PTR_CHECK(vfs_name) || PTR_CHECK(image)) return EVFS_ERR_BAD_ARG;
+static int evfs__register_romfs_cfg(const char *vfs_name, RomfsConfig *cfg, bool default_vfs) {
   Evfs      *new_vfs;
   RomfsData *fs_data;
 
@@ -569,17 +546,100 @@ int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
 #endif
 
 
-  RomfsConfig cfg = {
+/*  RomfsConfig cfg = {
     .ctx        = image,
     .total_size = evfs_file_size(image),
     .read_data  = romfs_read_image,
     .unmount    = romfs_unmount_image
-  };
-  int status = romfs_init(&fs_data->romfs, &cfg);
+  };*/
+  int status = romfs_init(&fs_data->romfs, cfg);
   if(status != EVFS_OK)
     return status;
 
   return evfs_register(new_vfs, default_vfs);
 }
 
+
+
+// Callbacks for image based Romfs
+void romfs_unmount_image(Romfs *fs) {
+  EvfsFile *image = (EvfsFile *)fs->ctx;
+  evfs_file_close(image);
+}
+
+ptrdiff_t romfs_read_image(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
+  EvfsFile *image = (EvfsFile *)fs->ctx;
+  evfs_file_seek(image, offset, EVFS_SEEK_TO);
+  return evfs_file_read(image, buf, size);
+}
+
+
+/*
+Register a Romfs instance using an image file
+
+Args:
+  vfs_name:      Name of new VFS
+  image:         Mounted Romfs image
+  default_vfs:   Make this the default VFS when true
+
+Returns:
+  EVFS_OK on success
+*/
+int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs) {
+  if(PTR_CHECK(vfs_name) || PTR_CHECK(image)) return EVFS_ERR_BAD_ARG;
+
+  RomfsConfig cfg = {
+    .ctx        = image,
+    .total_size = evfs_file_size(image),
+    .read_data  = romfs_read_image,
+    .unmount    = romfs_unmount_image
+  };
+
+  return evfs__register_romfs_cfg(vfs_name, &cfg, default_vfs);
+}
+
+
+
+// Callbacks for resource based Romfs
+void romfs_unmount_rsrc(Romfs *fs) {
+}
+
+ptrdiff_t romfs_read_rsrc(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
+  uint8_t *fs_base = (uint8_t *)fs->ctx;
+
+  if(offset >= fs->total_size || offset < 0)
+    return EVFS_ERR_OVERFLOW;
+
+  evfs_off_t remain = fs->total_size - offset;
+  size = MIN(size, remain);
+
+  memcpy(buf, fs_base + offset, size);
+
+  return size;
+}
+
+
+/*
+Register a Romfs instance using an in memory resource array
+
+Args:
+  vfs_name:      Name of new VFS
+  image:         Mounted Romfs image
+  default_vfs:   Make this the default VFS when true
+
+Returns:
+  EVFS_OK on success
+*/
+int evfs_register_rsrc_romfs(const char *vfs_name, uint8_t *resource, size_t resource_len, bool default_vfs) {
+  if(PTR_CHECK(vfs_name) || PTR_CHECK(resource)) return EVFS_ERR_BAD_ARG;
+
+  RomfsConfig cfg = {
+    .ctx        = resource,
+    .total_size = resource_len,
+    .read_data  = romfs_read_rsrc,
+    .unmount    = romfs_unmount_rsrc
+  };
+
+  return evfs__register_romfs_cfg(vfs_name, &cfg, default_vfs);
+}
 

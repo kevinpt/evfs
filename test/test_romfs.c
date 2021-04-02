@@ -9,6 +9,7 @@
 
 #include "evfs/util/getopt_r.h"
 
+#include "test_romfs.h"
 #include "hex_dump.h"
 
 
@@ -93,8 +94,9 @@ int main(int argc, char *argv[]) {
     evfs_register_romfs("romfs", image, /*default*/ true);
 
   } else { // Use compiled resource
-    puts("Missing file");
-    exit(1);
+    puts("Loading resource");
+
+    evfs_register_rsrc_romfs("romfs", test_romfs, test_romfs_len, /*default*/ true);
   }
 
 
