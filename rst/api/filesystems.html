@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Filesystems &#8212; EVFS 1.0.0 documentation</title>
+    <title>Filesystems &#8212; EVFS 1.1.0 documentation</title>
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/project.css" type="text/css" />
@@ -398,8 +398,9 @@ int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class=
 </div>
 <div class="section" id="romfs">
 <span id="id4"></span><h2>Romfs<a class="headerlink" href="#romfs" title="Permalink to this headline">¶</a></h2>
-<p>The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure.</p>
-<p>The <a class="reference internal" href="#c.evfs_register_romfs" title="evfs_register_romfs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_romfs()</span></code></a> function is used to mount a Romfs image. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the <a class="reference external" href="https://github.com/chexum/genromfs">genromfs</a> program which is available in most Linux distros.</p>
+<p>The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure. The images can either be accessed as files via an existing VFS or as an in-memory array of data.</p>
+<p>The <a class="reference internal" href="#c.evfs_register_romfs" title="evfs_register_romfs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_romfs()</span></code></a> function is used to mount a Romfs image from a VFS. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the <a class="reference external" href="https://github.com/chexum/genromfs">genromfs</a> program which is available in most Linux distros.</p>
+<p>The <a class="reference internal" href="#c.evfs_register_rsrc_romfs" title="evfs_register_rsrc_romfs"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_register_rsrc_romfs()</span></code></a> function is used to mount an in-memory array as a Romfs. You will need to link a Romfs image into the program similar to the methods described for the tar resource fs.</p>
 <p>There is a configuration option <a class="reference internal" href="configure.html#c.EVFS_USE_ROMFS_FAST_INDEX" title="EVFS_USE_ROMFS_FAST_INDEX"><code class="xref c c-macro docutils literal notranslate"><span class="pre">EVFS_USE_ROMFS_FAST_INDEX</span></code></a> that lets you control the generation of a hash table index. When enabled, path lookups are O(1) through a hash table. When disabled, files are found by walking the directory tree.</p>
 <p>Unlike the tar fs implementation, the Romfs driver supports directory operations. You can create an <code class="xref c c-type docutils literal notranslate"><span class="pre">EvfsDir</span></code> object and list directory contents like any other filesystem.</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; genromfs -d image_dir -f my_image.romfs -V MyImage -v
@@ -424,15 +425,48 @@ int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class=
 <span class="c1">// Image file is closed when VFS is unregistered</span>
 </pre></div>
 </div>
+<p>Mounting a Romfs resource is similar:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>&gt; genromfs -d image_dir -f my_image.romfs -V MyImage -v
+&gt; xxd -i my_image.romfs &gt; my_image.h
+</pre></div>
+</div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;evfs.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;evfs/romfs_fs.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;my_image.h&quot;</span><span class="cp"></span>
+
+<span class="c1">// Mount resource and make it default for future VFS access</span>
+<span class="n">evfs_register_rsrc_romfs</span><span class="p">(</span><span class="s">&quot;romfs&quot;</span><span class="p">,</span> <span class="n">image_romfs</span><span class="p">,</span> <span class="n">image_romfs_len</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+</pre></div>
+</div>
 <dl class="c function">
 <dt id="c.evfs_register_romfs">
 int <code class="sig-name descname">evfs_register_romfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, EvfsFile *<em>image</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_romfs" title="Permalink to this definition">¶</a><br /></dt>
-<dd><p>Register a Romfs instance</p>
+<dd><p>Register a Romfs instance using an image file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
 <li><p><strong>image</strong> – Mounted Romfs image</p></li>
+<li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVFS_OK on success</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="c function">
+<dt id="c.evfs_register_rsrc_romfs">
+int <code class="sig-name descname">evfs_register_rsrc_romfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, uint8_t *<em>resource</em>, size_t <em>resource_len</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_rsrc_romfs" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Register a Romfs instance using an in-memory resource array</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vfs_name</strong> – Name of new VFS</p></li>
+<li><p><strong>resource</strong> – Array of Romfs resource data</p></li>
+<li><p><strong>resource_len</strong> – Length of the resource array</p></li>
 <li><p><strong>default_vfs</strong> – Make this the default VFS when true</p></li>
 </ul>
 </dd>

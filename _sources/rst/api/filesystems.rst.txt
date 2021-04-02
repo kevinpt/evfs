@@ -240,9 +240,11 @@ File data can be accessed using the usual EVFS API with :c:func:`evfs_file_read`
 Romfs
 -----
 
-The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure.
+The Romfs driver provides the ability to mount Linux Romfs images. This is a simple read-only filesystem that has less overhead than the tar file filesystem and has a fully navigable directory structure. The images can either be accessed as files via an existing VFS or as an in-memory array of data.
 
-The :c:func:`evfs_register_romfs` function is used to mount a Romfs image. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the `genromfs <https://github.com/chexum/genromfs>`_ program which is available in most Linux distros.
+The :c:func:`evfs_register_romfs` function is used to mount a Romfs image from a VFS. You need to pass it a pointer to an opened image file containing the filesystem data. Romfs images are created with the `genromfs <https://github.com/chexum/genromfs>`_ program which is available in most Linux distros.
+
+The :c:func:`evfs_register_rsrc_romfs` function is used to mount an in-memory array as a Romfs. You will need to link a Romfs image into the program similar to the methods described for the tar resource fs.
 
 There is a configuration option :c:macro:`EVFS_USE_ROMFS_FAST_INDEX` that lets you control the generation of a hash table index. When enabled, path lookups are O(1) through a hash table. When disabled, files are found by walking the directory tree.
 
@@ -273,13 +275,44 @@ Unlike the tar fs implementation, the Romfs driver supports directory operations
   // Image file is closed when VFS is unregistered
 
 
+
+Mounting a Romfs resource is similar:
+
+.. code-block:: sh
+
+  > genromfs -d image_dir -f my_image.romfs -V MyImage -v
+  > xxd -i my_image.romfs > my_image.h
+ 
+.. code-block:: c
+
+  #include "evfs.h"
+  #include "evfs/romfs_fs.h"
+
+  #include "my_image.h"
+
+  // Mount resource and make it default for future VFS access
+  evfs_register_rsrc_romfs("romfs", image_romfs, image_romfs_len, /*default*/ true);
+
+
 .. c:function:: int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
 
-  Register a Romfs instance
+  Register a Romfs instance using an image file
 
   :param vfs_name:      Name of new VFS
   :param image:         Mounted Romfs image
   :param default_vfs:   Make this the default VFS when true
 
   :return: EVFS_OK on success
+
+.. c:function:: int evfs_register_rsrc_romfs(const char *vfs_name, uint8_t *resource, size_t resource_len, bool default_vfs)
+
+  Register a Romfs instance using an in-memory resource array
+
+  :param vfs_name:      Name of new VFS
+  :param resource:      Array of Romfs resource data
+  :param resource_len:  Length of the resource array
+  :param default_vfs:   Make this the default VFS when true
+
+  :return: EVFS_OK on success
+
 
