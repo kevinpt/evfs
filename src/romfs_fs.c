@@ -620,11 +620,12 @@ ptrdiff_t romfs_read_rsrc(Romfs *fs, evfs_off_t offset, void *buf, size_t size) 
 
 
 /*
-Register a Romfs instance using an in memory resource array
+Register a Romfs instance using an in-memory resource array
 
 Args:
   vfs_name:      Name of new VFS
-  image:         Mounted Romfs image
+  resource:      Array of Romfs resource data
+  resource_len:  Length of the resource array
   default_vfs:   Make this the default VFS when true
 
 Returns:
