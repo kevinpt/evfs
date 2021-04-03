@@ -129,3 +129,9 @@ These are options spcific to various filesystems and shims
 .. c:macro::  EVFS_USE_ROMFS_FAST_INDEX
 
   Generate a hash table index for direct lookup of file paths. When disabled, the filesystem will walk the directory tree sequentially for file lookups.
+
+
+.. c:macro:: EVFS_ROMFS_MAX_NAME_LEN
+
+  Maximum length of a Romfs file or directory name. Must be a multiple of 16. Defaults to 32. Every open file and directory object has a buffer of this size. Keep it small if memory is limited.
+

@@ -436,9 +436,37 @@ int <code class="sig-name descname">evfs_register_tar_rsrc_fs</code><span class=
 <span class="cp">#include</span> <span class="cpf">&quot;my_image.h&quot;</span><span class="cp"></span>
 
 <span class="c1">// Mount resource and make it default for future VFS access</span>
-<span class="n">evfs_register_rsrc_romfs</span><span class="p">(</span><span class="s">&quot;romfs&quot;</span><span class="p">,</span> <span class="n">image_romfs</span><span class="p">,</span> <span class="n">image_romfs_len</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+<span class="n">evfs_register_rsrc_romfs</span><span class="p">(</span><span class="s">&quot;romfs&quot;</span><span class="p">,</span> <span class="n">my_image_romfs</span><span class="p">,</span> <span class="n">my_image_romfs_len</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
 </pre></div>
 </div>
+<p>Converting a large filesystem image into a header generates an unnecessary amount of text for the compiler to process. To avoid this you can generate an assembly stub that uses the <code class="docutils literal notranslate"><span class="pre">.incbin</span></code> directive for direct inclusion of the image data:</p>
+<div class="highlight-gas notranslate"><div class="highlight"><pre><span></span>  <span class="na">.section</span> <span class="no">.rodata</span>
+
+<span class="c1"># Include filesystem image</span>
+  <span class="na">.global</span> <span class="no">my_image</span>
+  <span class="na">.type</span> <span class="no">my_image</span><span class="p">,</span> <span class="na">@object</span>
+  <span class="na">.align</span> <span class="mi">4</span>
+<span class="nl">my_image:</span>
+  <span class="na">.incbin</span> <span class="s">&quot;my_image.romfs&quot;</span>
+<span class="nl">my_image_end:</span>
+  <span class="na">.byte</span> <span class="mi">0</span>
+
+<span class="c1"># Compute size of the image</span>
+  <span class="na">.global</span> <span class="no">my_image_size</span>
+  <span class="na">.type</span> <span class="no">my_image_size</span><span class="p">,</span> <span class="na">@object</span>
+  <span class="na">.align</span> <span class="mi">4</span>
+<span class="nl">my_image_size:</span>
+  <span class="nf">.4byte</span>  <span class="no">my_image_end</span> <span class="p">-</span> <span class="no">my_image</span>
+</pre></div>
+</div>
+<p>This can be saved as <cite>my_image.s</cite> and linked with a compiler that suports gcc assembly directives. The labels “my_image” and “my_image_size” are referenced from C code when registering the filesystem:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="k">const</span> <span class="kt">uint8_t</span>   <span class="n">my_image</span><span class="p">[];</span>
+<span class="k">extern</span> <span class="k">const</span> <span class="kt">uint32_t</span>  <span class="n">my_image_size</span><span class="p">;</span>
+<span class="p">...</span>
+<span class="n">evfs_register_rsrc_romfs</span><span class="p">(</span><span class="s">&quot;romfs&quot;</span><span class="p">,</span> <span class="n">my_image</span><span class="p">,</span> <span class="n">my_image_size</span><span class="p">,</span> <span class="cm">/*default*/</span> <span class="nb">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>You can pass the <cite>EVFS_CMD_GET_RSRC_ADDR</cite> command to <a class="reference internal" href="library.html#c.evfs_file_ctrl" title="evfs_file_ctrl"><code class="xref c c-func docutils literal notranslate"><span class="pre">evfs_file_ctrl()</span></code></a> to directly access in-memory resource data as shown above for the tar resource FS.</p>
 <dl class="c function">
 <dt id="c.evfs_register_romfs">
 int <code class="sig-name descname">evfs_register_romfs</code><span class="sig-paren">(</span><em class="property">const</em> char *<em>vfs_name</em>, EvfsFile *<em>image</em>, bool <em>default_vfs</em><span class="sig-paren">)</span><a class="headerlink" href="#c.evfs_register_romfs" title="Permalink to this definition">¶</a><br /></dt>

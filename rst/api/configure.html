@@ -175,6 +175,12 @@
 <dd><p>Generate a hash table index for direct lookup of file paths. When disabled, the filesystem will walk the directory tree sequentially for file lookups.</p>
 </dd></dl>
 
+<dl class="c macro">
+<dt id="c.EVFS_ROMFS_MAX_NAME_LEN">
+<code class="sig-name descname">EVFS_ROMFS_MAX_NAME_LEN</code><a class="headerlink" href="#c.EVFS_ROMFS_MAX_NAME_LEN" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Maximum length of a Romfs file or directory name. Must be a multiple of 16. Defaults to 32. Every open file and directory object has a buffer of this size. Keep it small if memory is limited.</p>
+</dd></dl>
+
 </div>
 </div>
 </div>
