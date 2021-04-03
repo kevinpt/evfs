@@ -3,9 +3,8 @@
 #define ROMFS_COMMON_H
 
 
-#define ROMFS_MAX_NAME_LEN 32
 
-#define ROMFS_MAX_HEADER_SIZE ((16 + ROMFS_MAX_NAME_LEN + 15) & ~0xF)
+#define ROMFS_MAX_HEADER_SIZE ((16 + EVFS_ROMFS_MAX_NAME_LEN + 15) & ~0xF)
 #define ROMFS_MIN_HEADER_SIZE (16 + 2)
 
 
@@ -33,7 +32,7 @@ typedef struct RomfsFileHead {
   uint32_t spec_info;
   uint32_t size;
   uint32_t header_len; // This is the checksum in the romfs binary format
-  char file_name[ROMFS_MAX_NAME_LEN];
+  char file_name[EVFS_ROMFS_MAX_NAME_LEN];
 } RomfsFileHead;
 
 

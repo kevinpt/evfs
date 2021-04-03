@@ -84,5 +84,7 @@ Embedded Virtual Filesystem
 // retrieved by walking the directory structures.
 #define EVFS_USE_ROMFS_FAST_INDEX
 
+// Maximum length of a Romfs file or directory name. Must be a multiple of 16.
+#define EVFS_ROMFS_MAX_NAME_LEN   32
 
 #endif // EVFS_CONFIG_H

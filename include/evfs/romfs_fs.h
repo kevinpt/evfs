@@ -19,6 +19,6 @@ Embedded Virtual Filesystem
 
 
 int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs);
-int evfs_register_rsrc_romfs(const char *vfs_name, uint8_t *resource, size_t resource_len, bool default_vfs);
+int evfs_register_rsrc_romfs(const char *vfs_name, const uint8_t *resource, size_t resource_len, bool default_vfs);
 
 #endif // ROMFS_FS_H

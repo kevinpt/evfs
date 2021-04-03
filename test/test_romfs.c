@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
   EvfsDir *dh;
   EvfsInfo info;
   evfs_open_dir("/evfs", &dh);
-/*  printf("Read dir:\n");
+  printf("Read dir:\n");
   do {
     status = evfs_dir_read(dh, &info);
 
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     if(status == EVFS_OK)
       printf("  '%s'  %d  %c\n", info.name, info.size, info.type & EVFS_FILE_DIR ? 'D' : ' ');
   } while(status != EVFS_DONE);
-*/
+
 
   evfs_dir_close(dh);
 
@@ -164,6 +164,17 @@ int main(int argc, char *argv[]) {
 
   status = evfs_stat("/", &info);
   printf("Stat: %d  %d  %c\n", status, info.size, info.type & EVFS_FILE_DIR ? 'D' : 'f');
+
+  if(!options.image_file) {
+    evfs_open("/evfs/util/dhash.h", &fh, EVFS_READ);
+    uint8_t *file_data;
+    evfs_file_ctrl(fh, EVFS_CMD_GET_RSRC_ADDR, &file_data);
+    size_t file_data_len = evfs_file_size(fh);
+    evfs_file_close(fh);
+
+    printf("In memory file len: %ld\n", file_data_len);
+    dump_array(file_data, 100);
+  }
 
   return 0;
 }

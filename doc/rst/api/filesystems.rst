@@ -291,7 +291,41 @@ Mounting a Romfs resource is similar:
   #include "my_image.h"
 
   // Mount resource and make it default for future VFS access
-  evfs_register_rsrc_romfs("romfs", image_romfs, image_romfs_len, /*default*/ true);
+  evfs_register_rsrc_romfs("romfs", my_image_romfs, my_image_romfs_len, /*default*/ true);
+
+Converting a large filesystem image into a header generates an unnecessary amount of text for the compiler to process. To avoid this you can generate an assembly stub that uses the ``.incbin`` directive for direct inclusion of the image data:
+
+.. code-block:: gas
+
+    .section .rodata
+
+  # Include filesystem image
+    .global my_image
+    .type my_image, @object
+    .align 4
+  my_image:
+    .incbin "my_image.romfs"
+  my_image_end:
+    .byte 0
+
+  # Compute size of the image
+    .global my_image_size
+    .type my_image_size, @object
+    .align 4
+  my_image_size:
+    .4byte  my_image_end - my_image
+
+This can be saved as `my_image.s` and linked with a compiler that suports gcc assembly directives. The labels "my_image" and "my_image_size" are referenced from C code when registering the filesystem:
+
+.. code-block:: c
+
+  extern const uint8_t   my_image[];
+  extern const uint32_t  my_image_size;
+  ...
+  evfs_register_rsrc_romfs("romfs", my_image, my_image_size, /*default*/ true);
+
+
+You can pass the `EVFS_CMD_GET_RSRC_ADDR` command to :c:func:`evfs_file_ctrl` to directly access in-memory resource data as shown above for the tar resource FS.
 
 
 .. c:function:: int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)

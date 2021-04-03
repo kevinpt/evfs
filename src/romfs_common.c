@@ -20,7 +20,7 @@
 static inline int file_header_len(RomfsFileHead *hdr) {
   // Header = 16 bytes + file_name
   // Round up to 16-byte boundary
-  return (16 + strnlen(hdr->file_name, ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
+  return (16 + strnlen(hdr->file_name, EVFS_ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
 }
 
 
@@ -216,7 +216,7 @@ static int romfs__validate(Romfs *fs) {
       //DPRINT("VOLUME: '%s'", vol_name);
 
       // Root dir starts at first file header
-      fs->root_dir = (16 + strnlen(vol_name, ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
+      fs->root_dir = (16 + strnlen(vol_name, EVFS_ROMFS_MAX_NAME_LEN-1)+1 + 15) & ~0xF;
       return EVFS_OK;
     }
   }

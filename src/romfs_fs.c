@@ -142,9 +142,30 @@ static int make_absolute_path(Evfs *vfs, const char *path, char **absolute, bool
 
 // ******************** File access methods ********************
 
+ptrdiff_t romfs_read_rsrc(Romfs *fs, evfs_off_t offset, void *buf, size_t size);
+
 static int romfs__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
-  return EVFS_ERR_NO_SUPPORT;
+  RomfsFile *fil = (RomfsFile *)fh;
+  RomfsData *fs_data = fil->fs_data;
+
+  switch(cmd) {
+    case EVFS_CMD_GET_RSRC_ADDR:
+      {
+        // NOTE: This is only valid for in-memory resource Romfs
+        if(fs_data->romfs.read_data != romfs_read_rsrc)
+          return EVFS_ERR_NO_SUPPORT;
+
+        uint8_t **v = (uint8_t **)arg;
+
+        *v = (uint8_t *)fs_data->romfs.ctx + FILE_OFFSET(&fil->hdr) + fil->hdr.header_len;
+      }
+      return EVFS_OK; break;
+
+    default: return EVFS_ERR_NO_SUPPORT; break;
+  }
+
 }
+
 
 static int romfs__file_close(EvfsFile *fh) {
   RomfsFile *fil = (RomfsFile *)fh;
@@ -631,11 +652,11 @@ Args:
 Returns:
   EVFS_OK on success
 */
-int evfs_register_rsrc_romfs(const char *vfs_name, uint8_t *resource, size_t resource_len, bool default_vfs) {
+int evfs_register_rsrc_romfs(const char *vfs_name, const uint8_t *resource, size_t resource_len, bool default_vfs) {
   if(PTR_CHECK(vfs_name) || PTR_CHECK(resource)) return EVFS_ERR_BAD_ARG;
 
   RomfsConfig cfg = {
-    .ctx        = resource,
+    .ctx        = (void *)resource,
     .total_size = resource_len,
     .read_data  = romfs_read_rsrc,
     .unmount    = romfs_unmount_rsrc
