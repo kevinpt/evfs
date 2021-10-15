@@ -412,7 +412,7 @@ static inline int next_chunk(RotateState *rs) {
 
   // Next chunk always follows the end chunk
   next = rs->end_chunk+1;
-  if(next > rs->cfg.max_chunks)
+  if(next > (int)rs->cfg.max_chunks)
     next = 0;
 
   return next;
@@ -493,11 +493,11 @@ int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
     evict_chunk(base_vfs, &rs->base, rs->start_chunk, NULL);
 
     rs->start_chunk++;
-    if(rs->start_chunk > rs->cfg.max_chunks)
+    if(rs->start_chunk > (int)rs->cfg.max_chunks)
       rs->start_chunk = 0;
 
     // Adjust read/write pos to reflect trimmed file
-    if(rs->base.file_pos > rs->cfg.chunk_size)
+    if(rs->base.file_pos > (evfs_off_t)rs->cfg.chunk_size)
       rs->base.file_pos -= rs->cfg.chunk_size;
     else
       rs->base.file_pos = 0;
@@ -553,7 +553,7 @@ static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs, bool repair_
     spans[i].start = -1;
   }
 
-  for(int i = 0; i <= rs->cfg.max_chunks; i++) {
+  for(int i = 0; i <= (int)rs->cfg.max_chunks; i++) {
     bool exists = chunk_exists(base_vfs, &rs->base, i, &chunk_size);
 
     // It's possible a 0-length chunk was leftover from a previous
@@ -620,7 +620,7 @@ static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs, bool repair_
     rs->end_chunk   = spans[0].end;
 
     // These spans should wrap on the max_chunks boundary
-    if(spans[0].start != 0 || spans[1].end != rs->cfg.max_chunks) { // Multiple gaps in chunk sequence
+    if(spans[0].start != 0 || spans[1].end != (int)rs->cfg.max_chunks) { // Multiple gaps in chunk sequence
       status = EVFS_ERR_CORRUPTION;
       if(repair_corrupt) { // Drop shortest span
         if((spans[1].end - spans[1].start) > (spans[0].end - spans[0].start)) { // Second span is longer
@@ -649,7 +649,7 @@ static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs, bool repair_
     while(cur_chunk != rs->start_chunk) {
       evict_chunk(base_vfs, &rs->base, cur_chunk, NULL);
       cur_chunk++;
-      if(cur_chunk > rs->cfg.max_chunks) cur_chunk = 0;
+      if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
     }
   }
 
@@ -679,7 +679,7 @@ static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs, bool repair_
       }
 
       cur_chunk++;
-      if(cur_chunk > rs->cfg.max_chunks) cur_chunk = 0;
+      if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
     }
   }
 
@@ -821,12 +821,12 @@ int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
 
   // Determine range of chunks to delete
   trim_start = rs->start_chunk;
-  if(trim_chunks*rs->cfg.chunk_size >= rs->base.total_size) { // Remove all chunks
+  if(trim_chunks * (evfs_off_t)rs->cfg.chunk_size >= rs->base.total_size) { // Remove all chunks
     trim_end = rs->end_chunk;
 
   } else { // Partial trim
     trim_end = trim_start + trim_chunks - 1;
-    if(trim_end > rs->cfg.max_chunks)
+    if(trim_end > (int)rs->cfg.max_chunks)
       trim_end = trim_end - rs->cfg.max_chunks - 1;
   }
 
@@ -836,7 +836,7 @@ int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
 
   // Delete chunks
   trim_end++; // End is now what will be new start
-  if(trim_end > rs->cfg.max_chunks) trim_end = 0;
+  if(trim_end > (int)rs->cfg.max_chunks) trim_end = 0;
 
   while(cur_chunk != trim_end) {
     status = evict_chunk(base_vfs, &rs->base, cur_chunk, &chunk_size);
@@ -845,7 +845,7 @@ int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
 
     trimmed_size += chunk_size;
     cur_chunk++;
-    if(cur_chunk > rs->cfg.max_chunks) cur_chunk = 0;
+    if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
   }
 
   // Fix up state
@@ -971,7 +971,7 @@ static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
       // Seek into this chunk
       evfs_file_seek(rs->base.active_chunk_fh, rpos.offset, EVFS_SEEK_TO);
       evfs_off_t remain_space = chunk_size - rpos.offset;
-      size_t read_size = MIN(size, remain_space);
+      size_t read_size = MIN((evfs_off_t)size, remain_space);
 
       ptrdiff_t read_chunk = evfs_file_read(rs->base.active_chunk_fh, buf, read_size);
       if(read_chunk > 0) {
@@ -1039,7 +1039,7 @@ static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) 
       if(ASSERT(free_space != 0, "No free space to write in chunk")) // This shouldn't happen
         return EVFS_ERR_CORRUPTION;
 
-      size_t write_size = MIN(size, free_space);
+      size_t write_size = MIN((evfs_off_t)size, free_space);
 
       ptrdiff_t wrote_chunk = evfs_file_write(rs->base.active_chunk_fh, buf, write_size);
       if(wrote_chunk > 0) {

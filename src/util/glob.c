@@ -94,7 +94,7 @@ static const char *parse_range_def(const char *pat_pos, CharSet *cs) {
   }
 
   if(invert) {
-    for(int i = 0; i < COUNT_OF(cs->chars); i++) {
+    for(size_t i = 0; i < COUNT_OF(cs->chars); i++) {
       cs->chars[i] = ~cs->chars[i];
     }
   }

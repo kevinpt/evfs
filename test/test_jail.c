@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Copy file\n");
-    evfs_copy_to_file("copy.txt", fh);
+    evfs_copy_to_file("copy.txt", fh, NULL, 1024);
 
     evfs_file_close(fh);
 

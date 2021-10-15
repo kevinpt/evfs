@@ -78,7 +78,7 @@ size_t search_nearest(const void *key, const void *base, size_t num, size_t item
   // At this point low is one greater than high. Key would lie between them.
 
   // Bounds check if we went past the ends
-  if(low >= num)
+  if(low >= (ptrdiff_t)num)
     return num-1;
 
   if(high < 0)

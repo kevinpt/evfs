@@ -183,7 +183,7 @@ static ptrdiff_t romfs__file_read(EvfsFile *fh, void *buf, size_t size) {
   evfs_off_t remaining = fil->hdr.size - fil->read_pos;
   if(remaining <= 0) return 0;
 
-  if(size > remaining)
+  if((evfs_off_t)size > remaining)
     size = remaining;
 
   LOCK();
@@ -220,7 +220,7 @@ static int romfs__file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin)
   offset = evfs__absolute_offset(fh, offset, origin);
   if(ASSERT(offset >= 0, "Invalid offset")) return EVFS_ERR_INVALID;
 
-  if(offset > fil->hdr.size)
+  if(offset > (evfs_off_t)fil->hdr.size)
     offset = fil->hdr.size;
 
   fil->read_pos = offset;
@@ -235,7 +235,7 @@ static evfs_off_t romfs__file_tell(EvfsFile *fh) {
 
 static bool romfs__file_eof(EvfsFile *fh) {
   RomfsFile *fil = (RomfsFile *)fh;
-  return fil->read_pos >= fil->hdr.size;
+  return fil->read_pos >= (evfs_off_t)fil->hdr.size;
 }
 
 
@@ -632,7 +632,7 @@ ptrdiff_t romfs_read_rsrc(Romfs *fs, evfs_off_t offset, void *buf, size_t size) 
     return EVFS_ERR_OVERFLOW;
 
   evfs_off_t remain = fs->total_size - offset;
-  size = MIN(size, remain);
+  size = MIN((evfs_off_t)size, remain);
 
   memcpy(buf, fs_base + offset, size);
 

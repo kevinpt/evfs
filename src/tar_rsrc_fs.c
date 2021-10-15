@@ -347,7 +347,7 @@ static int tarfs__file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin)
 
   if(ASSERT(offset >= 0, "Invalid offset")) return EVFS_ERR;
 
-  if(offset > fil->file_size)
+  if(offset > (evfs_off_t)fil->file_size)
     offset = fil->file_size;
 
   fil->read_pos = offset;

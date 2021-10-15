@@ -284,7 +284,7 @@ static ptrdiff_t tarfs__file_read(EvfsFile *fh, void *buf, size_t size) {
   evfs_off_t remaining = fil->file_size - fil->read_pos;
   if(remaining <= 0) return 0;
 
-  if(size > remaining)
+  if((evfs_off_t)size > remaining)
     size = remaining;
 
   LOCK();

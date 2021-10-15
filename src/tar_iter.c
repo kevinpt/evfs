@@ -48,14 +48,14 @@ static bool tar__valid_header(TarHeader *header) {
   // Compute the checksum
   uint8_t *raw_header = (uint8_t *)header;
   uint32_t checksum = 0;
-  for(int i = 0; i < offsetof(TarHeader, checksum); i++) {
+  for(size_t i = 0; i < offsetof(TarHeader, checksum); i++) {
     checksum += raw_header[i];
   }
   // Replace checksum with spaces
-  for(int i = offsetof(TarHeader, checksum); i < offsetof(TarHeader, type_flag); i++) {
+  for(size_t i = offsetof(TarHeader, checksum); i < offsetof(TarHeader, type_flag); i++) {
     checksum += ' ';
   }
-  for(int i = offsetof(TarHeader, type_flag); i < TAR_HEADER_SIZE; i++) {
+  for(size_t i = offsetof(TarHeader, type_flag); i < TAR_HEADER_SIZE; i++) {
     checksum += raw_header[i];
   }
 

@@ -189,7 +189,7 @@ static int romfs__validate(Romfs *fs) {
   if(get_unaligned_le(&buf[0]) == 0x6D6F722D && get_unaligned_le(&buf[1]) == 0x2D736631) {
     uint32_t fs_bytes = get_unaligned_be(&buf[2]);
 
-    if(ASSERT(fs_bytes <= fs->total_size, "Invalid Romfs size"))
+    if(ASSERT((evfs_off_t)fs_bytes <= fs->total_size, "Invalid Romfs size"))
       return EVFS_ERR_INVALID;
 
     // Iterate over chunks to verify checksum

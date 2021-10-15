@@ -51,12 +51,6 @@ set(EVFS_LIB_SOURCE
 
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
 
-set_source_files_properties(${EVFS_LIB_SOURCE}
-  PROPERTIES
-    COMPILE_FLAGS "-Wno-sign-compare"
-)
-
-
 
 set(LFS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/vendored/littlefs")
 

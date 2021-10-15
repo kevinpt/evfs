@@ -44,14 +44,14 @@ static bool tar__valid_header(TarHeader *header) {
   // Compute the checksum
   uint8_t *raw_header = (uint8_t *)header;
   uint32_t checksum = 0;
-  for(int i = 0; i < offsetof(TarHeader, checksum); i++) {
+  for(size_t i = 0; i < offsetof(TarHeader, checksum); i++) {
     checksum += raw_header[i];
   }
   // Replace checksum with spaces
-  for(int i = offsetof(TarHeader, checksum); i < offsetof(TarHeader, type_flag); i++) {
+  for(size_t i = offsetof(TarHeader, checksum); i < offsetof(TarHeader, type_flag); i++) {
     checksum += ' ';
   }
-  for(int i = offsetof(TarHeader, type_flag); i < TAR_HEADER_SIZE; i++) {
+  for(size_t i = offsetof(TarHeader, type_flag); i < TAR_HEADER_SIZE; i++) {
     checksum += raw_header[i];
   }
 
@@ -99,7 +99,7 @@ bool tar_rsrc_iter_next(TarRsrcIterator *tar_it) {
   size_t next_header = tar_it->header_offset + (file_blocks+1) * TAR_BLOCK_SIZE;
 
   tar_it->read_pos = tar_it->resource + next_header;
-  if(tar_it->read_pos - tar_it->resource >= tar_it->resource_len)
+  if((size_t)(tar_it->read_pos - tar_it->resource) >= tar_it->resource_len)
     return false;
 
   return tar__rsrc_get_header(tar_it);
