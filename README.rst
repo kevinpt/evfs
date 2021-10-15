@@ -42,7 +42,7 @@ Requirements
 EVFS is a C library that can be incorporated into other projects. It requires a compiler
 that supports C11. Although, if necessary, it can be downgraded to C99 with minimal
 changes. CMake build scripts are provided for generating test and demo programs. This
-requires at least CMake 3.13.
+requires at least CMake 3.15.
 
 
 Installation
