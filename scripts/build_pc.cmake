@@ -10,8 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-   set(CMAKE_C_FLAGS_DEBUG "-O0 -g -gdwarf-3 -gstrict-dwarf")
-   set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-3 -gstrict-dwarf")
+   set(CMAKE_C_FLAGS_DEBUG "-O0 -g -gdwarf-3 -gstrict-dwarf -fno-omit-frame-pointer -fsanitize=undefined")
+   set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-3 -gstrict-dwarf -fno-omit-frame-pointer -fsanitize=undefined")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
@@ -66,12 +66,11 @@ function(add_pc_executable EXEC_NAME)
     ${ARG_SOURCE}
   )
 
-  target_link_options(${EXEC_NAME}.elf
+  target_link_options(${EXEC_NAME}
     PRIVATE
       "LINKER:--gc-sections"
-      "LINKER:-Map,${EXEC_NAME}.map"
-      "LINKER:--cref"
-      "LINKER:--print-memory-usage"
+#      "LINKER:-Map,${EXEC_NAME}.map"
+#      "LINKER:--cref"
   )
 
 

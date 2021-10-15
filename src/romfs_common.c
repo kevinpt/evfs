@@ -347,7 +347,7 @@ static size_t scan_dir_tree(Romfs *fs, const char *path, size_t prefix_len, int 
 // Recursively scan the filesystem to add hash table indices
 static int index_dir_tree(Romfs *fs, const char *path, size_t prefix_len, RomfsIndex *ht, AppendRange *keys_r) {
   RomfsFileHead cur_file;
-  evfs_off_t    cur_file_offset;
+  evfs_off_t    cur_file_offset = 0;
   int status;
   dhKey key;
   alignas(uintptr_t) evfs_off_t entry;

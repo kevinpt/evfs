@@ -115,14 +115,13 @@ PUBLIC
 
 #################### test_image ####################
 
-add_executable(test_image EXCLUDE_FROM_ALL test/test_image.c)
-
-target_sources(test_image
-PRIVATE
-  ${EVFS_PREFIX}/util/getopt_r.c
-  ${EVFS_PREFIX}/stdio_fs.c
-  ${FATFS_SOURCE}
-  ${LITTLEFS_SOURCE}
+add_pc_executable(test_image
+  SOURCE
+    test/test_image.c
+    ${EVFS_PREFIX}/util/getopt_r.c
+    ${EVFS_PREFIX}/stdio_fs.c
+    ${FATFS_SOURCE}
+    ${LITTLEFS_SOURCE}
 )
 
 target_include_directories(test_image
@@ -141,12 +140,11 @@ PRIVATE
 
 #################### test_rotate ####################
 
-add_executable(test_rotate EXCLUDE_FROM_ALL test/test_rotate.c)
-
-target_sources(test_rotate
-PRIVATE
-  ${EVFS_PREFIX}/util/getopt_r.c
-  ${EVFS_PREFIX}/stdio_fs.c
+add_pc_executable(test_rotate
+  SOURCE
+    test/test_rotate.c
+    ${EVFS_PREFIX}/util/getopt_r.c
+    ${EVFS_PREFIX}/stdio_fs.c
 )
 
 target_include_directories(test_rotate
@@ -162,12 +160,11 @@ PRIVATE
 
 #################### test_jail ####################
 
-add_executable(test_jail EXCLUDE_FROM_ALL test/test_jail.c)
-
-target_sources(test_jail
-PRIVATE
-  ${EVFS_PREFIX}/util/getopt_r.c
-  ${EVFS_PREFIX}/stdio_fs.c
+add_pc_executable(test_jail
+  SOURCE
+    test/test_jail.c
+    ${EVFS_PREFIX}/util/getopt_r.c
+    ${EVFS_PREFIX}/stdio_fs.c
 )
 
 target_include_directories(test_jail
@@ -182,12 +179,11 @@ PRIVATE
 
 #################### test_tar ####################
 
-add_executable(test_tar EXCLUDE_FROM_ALL test/test_tar.c)
-
-target_sources(test_tar
-PRIVATE
-  ${EVFS_PREFIX}/util/getopt_r.c
-  ${EVFS_PREFIX}/stdio_fs.c
+add_pc_executable(test_tar
+  SOURCE
+    test/test_tar.c
+    ${EVFS_PREFIX}/util/getopt_r.c
+    ${EVFS_PREFIX}/stdio_fs.c
 )
 
 target_include_directories(test_tar
@@ -203,16 +199,15 @@ PRIVATE
 
 #################### test_romfs ####################
 
-add_executable(test_romfs EXCLUDE_FROM_ALL test/test_romfs.c)
-
-target_sources(test_romfs
-PRIVATE
-  ${EVFS_PREFIX}/util/getopt_r.c
-  ${EVFS_PREFIX}/stdio_fs.c
-  test/hex_dump.c
+add_pc_executable(test_romfs
+  SOURCE
+    test/test_romfs.c
+    ${EVFS_PREFIX}/util/getopt_r.c
+    ${EVFS_PREFIX}/stdio_fs.c
+    test/hex_dump.c
 )
-target_include_directories(test_romfs
 
+target_include_directories(test_romfs
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
@@ -222,6 +217,8 @@ PRIVATE
   evfs
 )
 
+
+#################### tests ####################
 
 add_custom_target(test
   ALL
