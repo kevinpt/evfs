@@ -1011,7 +1011,8 @@ static void dh__dump_entry(dhash *hash, dhBucketEntry *entry, dhBucketIndex b) {
 #else
       -1,
 #endif
-      &entry->value_obj, (uintptr_t)entry->value_obj[0],
+      (void *)&entry->value_obj[0],
+      (uintptr_t)entry->value_obj[0],
       //entry->flags,
       entry->deleted,
       PROBE_COUNT(entry),

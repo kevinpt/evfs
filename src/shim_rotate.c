@@ -937,10 +937,11 @@ static int rotate__file_close(EvfsFile *fh) {
 
 static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
   RotateFile *fil = (RotateFile *)fh;
+  uint8_t *cbuf = (uint8_t *)buf;
 
   ptrdiff_t read = 0;
   if(!fil->rot_state) { // This is a normal file
-    read = fil->base_file->methods->m_read(fil->base_file, buf, size);
+    read = fil->base_file->methods->m_read(fil->base_file, cbuf, size);
 
   } else {
     RotateState *rs = fil->rot_state;
@@ -973,9 +974,9 @@ static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
       evfs_off_t remain_space = chunk_size - rpos.offset;
       size_t read_size = MIN((evfs_off_t)size, remain_space);
 
-      ptrdiff_t read_chunk = evfs_file_read(rs->base.active_chunk_fh, buf, read_size);
+      ptrdiff_t read_chunk = evfs_file_read(rs->base.active_chunk_fh, cbuf, read_size);
       if(read_chunk > 0) {
-        buf += read_chunk;
+        cbuf += read_chunk;
         size -= read_chunk;
         rs->base.file_pos += read_chunk;
         read += read_chunk;
@@ -997,10 +998,11 @@ static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
 
 static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) {
   RotateFile *fil = (RotateFile *)fh;
+  uint8_t *cbuf = (uint8_t *)buf;
 
   ptrdiff_t wrote = 0;
   if(!fil->rot_state) { // This is a normal file
-    wrote = fil->base_file->methods->m_write(fil->base_file, buf, size);
+    wrote = fil->base_file->methods->m_write(fil->base_file, cbuf, size);
 
   } else { // Write to rotate container
     RotateState *rs = fil->rot_state;
@@ -1041,9 +1043,9 @@ static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) 
 
       size_t write_size = MIN((evfs_off_t)size, free_space);
 
-      ptrdiff_t wrote_chunk = evfs_file_write(rs->base.active_chunk_fh, buf, write_size);
+      ptrdiff_t wrote_chunk = evfs_file_write(rs->base.active_chunk_fh, cbuf, write_size);
       if(wrote_chunk > 0) {
-        buf += wrote_chunk;
+        cbuf += wrote_chunk;
         size -= wrote_chunk;
         incr_write_pos(&rs->base, wrote_chunk);
         wrote += wrote_chunk;

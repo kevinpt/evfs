@@ -58,14 +58,14 @@ Embedded Virtual Filesystem
 
 
 // Callback for trace shim
-int treport(const char *buf, void *ctx) {
+static int treport(const char *buf, void *ctx) {
   fputs(buf, (FILE *)ctx);
   return 0;
 }
 
 
 // Retrieve file metadata on VFSs that don't provide it all with evfs_dir_read()
-bool get_stat(const char *path, const char *fname, EvfsInfo *info, const char *vfs_name) {
+static bool get_stat(const char *path, const char *fname, EvfsInfo *info, const char *vfs_name) {
   // Get the FS capabilities for stat
   //unsigned stat_fields = 0;
   //evfs_vfs_ctrl_ex(EVFS_CMD_GET_STAT_FIELDS, &stat_fields, vfs_name);
@@ -83,7 +83,7 @@ bool get_stat(const char *path, const char *fname, EvfsInfo *info, const char *v
 
 
 // Print directory listing for a path
-void print_dir(const char *path, const char *vfs_name) {
+static void print_dir(const char *path, const char *vfs_name) {
   EvfsDir *dir;
   EvfsInfo info;
 

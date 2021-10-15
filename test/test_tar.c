@@ -16,7 +16,7 @@
 
 
 // Callback for trace shim
-int treport(const char *buf, void *ctx) {
+static int treport(const char *buf, void *ctx) {
   fputs(buf, (FILE *)ctx);
   return 0;
 }

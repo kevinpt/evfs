@@ -223,6 +223,13 @@ PRIVATE
 )
 
 
+add_custom_target(test
+  ALL
+    DEPENDS test_image test_rotate test_jail test_tar test_romfs
+)
+
+
+#################### Installation ####################
 
 install(TARGETS evfs evfs_so
   DESTINATION "lib"

@@ -22,6 +22,7 @@ Embedded Virtual Filesystem
 
 #include "evfs.h"
 #include "evfs_internal.h"
+#include "evfs/fatfs_fs.h"
 #include "ff.h"
 
 ///////////////////////////////////////////////////////////////////////////////////

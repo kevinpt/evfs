@@ -63,7 +63,7 @@ size_t search_nearest(const void *key, const void *base, size_t num, size_t item
   while(low <= high) {
     ptrdiff_t mid = low + (high-low)/2;
 
-    ptrdiff_t delta = compare_near(key, base + mid*item_size); 
+    ptrdiff_t delta = compare_near(key, (char *)base + mid*item_size); 
     //printf(" | (%d) %d %d-%d-%d\n", *(int*)key, delta, low, mid, high);
     if(delta < 0) { // Key is below mid point
       high = mid-1;
@@ -86,8 +86,8 @@ size_t search_nearest(const void *key, const void *base, size_t num, size_t item
     return 0;
 
   // Find nearest
-  ptrdiff_t hd = compare_near(base + low*item_size, key);  // High delta: base[high] - key
-  ptrdiff_t ld = compare_near(key, base + high*item_size); // Low delta:  key - base[low]
+  ptrdiff_t hd = compare_near((char *)base + low*item_size, key);  // High delta: base[high] - key
+  ptrdiff_t ld = compare_near(key, (char *)base + high*item_size); // Low delta:  key - base[low]
   //printf(" ## %d - %d, %d %d --> %d\n", low, high, ld, hd , (ld < hd) ? high : low);
   // If key is closer to lower index value we use its index (actually high) and vice versa
   return (ld < hd) ? high : low;
@@ -116,7 +116,7 @@ size_t search_nearest_above(const void *key, const void *base, size_t num, size_
   size_t ix = search_nearest(key, base, num, item_size, compare_near);
 
   // Coerce up if not at end of array
-  if(ix < num-1 && compare_near(key, base + ix*item_size) > 0)
+  if(ix < num-1 && compare_near(key, (char *)base + ix*item_size) > 0)
     ix++;
 
   return ix;
@@ -145,7 +145,7 @@ size_t search_nearest_below(const void *key, const void *base, size_t num, size_
   size_t ix = search_nearest(key, base, num, item_size, compare_near);
 
   // Coerce down if not at end of array
-  if(ix > 0 && compare_near(key, base + ix*item_size) < 0)
+  if(ix > 0 && compare_near(key, (char *)base + ix*item_size) < 0)
     ix--;
 
   return ix;

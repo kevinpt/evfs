@@ -37,7 +37,7 @@ add_compile_options(
   -Wshadow
   -Werror
 #  -Wfatal-errors
-#  -Wpedantic
+  -Wpedantic
 #  -pedantic-errors
   -Wredundant-decls
   -Wmissing-prototypes

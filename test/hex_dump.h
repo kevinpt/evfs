@@ -29,6 +29,6 @@ DEALINGS IN THE SOFTWARE.
 
 void dump_array(uint8_t *buf, size_t buf_len);
 
-void dump_array_ex(uint8_t *buf, size_t buf_len, bool show_ascii, bool ansi_color);
+void dump_array_ex(uint8_t *buf, size_t buf_len, bool skip_zeros, bool show_ascii, bool ansi_color);
 
 #endif // HEX_DUMP_H

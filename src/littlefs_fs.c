@@ -20,6 +20,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 #include "lfs.h"
+#include "evfs/littlefs_fs.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 
