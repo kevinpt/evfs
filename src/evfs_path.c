@@ -47,34 +47,34 @@ static bool normalize_root_component(Evfs *vfs, char *path, StringRange *root) {
 
 
 static bool append_normalized_root(Evfs *vfs, AppendRange *dest, StringRange *root) {
-    bool truncated;
+  bool truncated = false;
 
-    // Copy the un-normalized root
-    if(range_size(root) < 16) {
-      char root_buf[16] = {0};
-      strncpy(root_buf, root->start, range_size(root));
-      normalize_root_component(vfs, root_buf, root);
+  // Copy the un-normalized root
+  if(range_size(root) < 16) {
+    char root_buf[16] = {0};
+    strncpy(root_buf, root->start, range_size(root));
+    normalize_root_component(vfs, root_buf, root);
+    if(range_cat_range_no_nul(dest, root) < 0)
+      truncated = true;
+
+  } else { // Fallback to malloc
+    char *root_norm = evfs_malloc(range_size(root)+1);
+    if(MEM_CHECK(root_norm)) { // Failed malloc
+      // Just append the root without normalization
       if(range_cat_range_no_nul(dest, root) < 0)
         truncated = true;
 
-    } else { // Fallback to malloc
-      char *root_norm = evfs_malloc(range_size(root)+1);
-      if(MEM_CHECK(root_norm)) { // Failed malloc
-        // Just append the root without normalization
-        if(range_cat_range_no_nul(dest, root) < 0)
-          truncated = true;
+    } else { // Success
+      memset(root_norm, 0, range_size(root)+1);
+      strncpy(root_norm, root->start, range_size(root));
+      normalize_root_component(vfs, root_norm, root);
 
-      } else { // Success
-        memset(root_norm, 0, range_size(root)+1);
-        strncpy(root_norm, root->start, range_size(root));
-        normalize_root_component(vfs, root_norm, root);
-        
-        if(range_cat_range_no_nul(dest, root) < 0)
-          truncated = true;
+      if(range_cat_range_no_nul(dest, root) < 0)
+        truncated = true;
 
-        evfs_free(root_norm);
-      }
+      evfs_free(root_norm);
     }
+  }
 
   return truncated;
 }
