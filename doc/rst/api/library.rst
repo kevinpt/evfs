@@ -739,7 +739,7 @@ Miscellaneous
 
 .. c:function:: const char *evfs_cmd_name(int cmd)
 
-  Translate an command code into a string.
+  Translate a command code into a string.
 
   :param cmd: EVFS command code
 

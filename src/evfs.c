@@ -136,7 +136,7 @@ const char *evfs_err_name(int err) {
 
 
 /*
-Translate an command code into a string
+Translate a command code into a string
 
 Args:
   cmd: EVFS command code
