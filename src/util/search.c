@@ -31,6 +31,7 @@ General purpose approximate search functions.
 */
 
 #include <stddef.h>
+#include "search.h"
 
 
 /*

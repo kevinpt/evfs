@@ -21,6 +21,7 @@ Embedded Virtual Filesystem
 
 #include "evfs.h"
 #include "evfs_internal.h"
+#include "evfs/shim/shim_trace.h"
 
 
 // Access objects allocated in a single block of memory
@@ -90,7 +91,7 @@ static void trace_printf(TraceData *shim_data, const char *fmt, ...) {
 }
 
 // Print common result string with optional colorization of errors
-void trace_print_result(TraceData *shim_data, const char *err_name, int err) {
+static void trace_print_result(TraceData *shim_data, const char *err_name, int err) {
 
 #ifdef EVFS_USE_ANSI_COLOR
   if(err >= 0) // No color change
@@ -106,7 +107,7 @@ void trace_print_result(TraceData *shim_data, const char *err_name, int err) {
 
 // ******************** File access methods ********************
 
-int trace__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
+static int trace__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 

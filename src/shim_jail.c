@@ -28,6 +28,7 @@ Embedded Virtual Filesystem
 
 #include "evfs.h"
 #include "evfs_internal.h"
+#include "evfs/shim/shim_jail.h"
 
 
 // Shared buffer needs lock if threading is enabled
@@ -110,7 +111,7 @@ static void unjail_path(Evfs *vfs, const char *path, StringRange *real_path) {
 
 // ******************** File access methods ********************
 
-int jail__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
+static int jail__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
   JailFile *fil = (JailFile *)fh;
   //JailData *shim_data = fil->shim_data;
 

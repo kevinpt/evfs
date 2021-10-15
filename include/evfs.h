@@ -285,6 +285,12 @@ static inline int evfs_delete(const char *path) {
 }
 
 
+int evfs_rename_ex(const char *old_path, const char *new_path, const char *vfs_name);
+static inline int evfs_rename(const char *old_path, const char *new_path) {
+  return evfs_rename_ex(old_path, new_path, NULL);
+}
+
+
 int evfs_make_dir_ex(const char *path, const char *vfs_name);
 
 static inline int evfs_make_dir(const char *path) {

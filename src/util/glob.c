@@ -35,6 +35,7 @@ String globbing
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "glob.h"
 
 
 /*

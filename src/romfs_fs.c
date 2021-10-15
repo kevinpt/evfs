@@ -26,6 +26,7 @@ Embedded Virtual Filesystem
 #endif
 
 #include "evfs/romfs_common.h"
+#include "evfs/romfs_fs.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -583,12 +584,12 @@ static int evfs__register_romfs_cfg(const char *vfs_name, RomfsConfig *cfg, bool
 
 
 // Callbacks for image based Romfs
-void romfs_unmount_image(Romfs *fs) {
+static void romfs_unmount_image(Romfs *fs) {
   EvfsFile *image = (EvfsFile *)fs->ctx;
   evfs_file_close(image);
 }
 
-ptrdiff_t romfs_read_image(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
+static ptrdiff_t romfs_read_image(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {
   EvfsFile *image = (EvfsFile *)fs->ctx;
   evfs_file_seek(image, offset, EVFS_SEEK_TO);
   return evfs_file_read(image, buf, size);
@@ -622,7 +623,7 @@ int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs)
 
 
 // Callbacks for resource based Romfs
-void romfs_unmount_rsrc(Romfs *fs) {
+static void romfs_unmount_rsrc(Romfs *fs) {
 }
 
 ptrdiff_t romfs_read_rsrc(Romfs *fs, evfs_off_t offset, void *buf, size_t size) {

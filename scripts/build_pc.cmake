@@ -39,8 +39,8 @@ add_compile_options(
 #  -Wfatal-errors
 #  -Wpedantic
 #  -pedantic-errors
-#  -Wredundant-decls
-#  -Wmissing-prototypes
+  -Wredundant-decls
+  -Wmissing-prototypes
   -Wdouble-promotion
   -Wundef
 )

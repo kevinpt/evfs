@@ -23,6 +23,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 #include "evfs/tar_iter.h"
+#include "evfs/tar_fs.h"
 
 #include "evfs/util/dhash.h"
 #include "evfs/util/range_strings.h"
@@ -211,9 +212,6 @@ static int tarfs__build_index(TarFileIterator *tar_it, EvfsTarIndex *ht) {
     // Only index plain files and directories
     if(tar_it->cur_header.type_flag != TAR_TYPE_NORMAL_FILE &&
        tar_it->cur_header.type_flag != TAR_TYPE_DIRECTORY) continue;
-
-
-    bool dh_insert(dhash *hash, dhKey key, void *value);
 
 
     dhKey key;

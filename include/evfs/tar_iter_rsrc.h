@@ -25,8 +25,7 @@ bool tar_rsrc_iter_seek(TarRsrcIterator *tar_it, evfs_off_t offset);
 bool tar_rsrc_iter_next(TarRsrcIterator *tar_it);
 #define tar_rsrc_iter_reset(r) tar_rsrc_iter_seek((r), (r)->header_offset)
 
-size_t tar_rsrc_iter_offset(TarRsrcIterator *tar_it);
-
+size_t tar_rsrc_iter_file_offset(TarRsrcIterator *tar_it);
 
 #endif // TAR_ITER_RSRC_H
 

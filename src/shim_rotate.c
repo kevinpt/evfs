@@ -225,7 +225,7 @@ typedef struct RotateDir_s {
 // ******************** Internal rotation API ********************
 
 
-evfs_off_t cur_write_pos(MultipartState *ms) {
+static evfs_off_t cur_write_pos(MultipartState *ms) {
   if(ms->flags & EVFS_APPEND)
     return ms->total_size;
 
@@ -233,7 +233,7 @@ evfs_off_t cur_write_pos(MultipartState *ms) {
 }
 
 
-void incr_write_pos(MultipartState *ms, evfs_off_t offset) {
+static void incr_write_pos(MultipartState *ms, evfs_off_t offset) {
   if(!(ms->flags & EVFS_APPEND))
     ms->file_pos += offset;
 }
@@ -479,7 +479,7 @@ static int activate_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num) {
 
 
 // Method
-int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
+static int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
   int next = next_chunk(rs);
   int gap = gap_chunk(rs);
 
@@ -790,7 +790,7 @@ cleanup1:
 }
 
 
-int set_rotate_config(Evfs *vfs, RotateConfig *cfg) {
+static int set_rotate_config(Evfs *vfs, RotateConfig *cfg) {
   // Validate the config settings
   if(cfg->max_chunks < 2
     || cfg->max_chunks > MULTIPART_MAX_CHUNK
@@ -805,7 +805,7 @@ int set_rotate_config(Evfs *vfs, RotateConfig *cfg) {
 
 
 
-int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
+static int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
   RotateState *rs = fil->rot_state;
   RotateData *shim_data = fil->shim_data;
   Evfs *base_vfs = shim_data->base_vfs;
@@ -874,7 +874,7 @@ int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
 
 // ******************** File access methods ********************
 
-int rotate__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
+static int rotate__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
   RotateFile *fil = (RotateFile *)fh;
   //RotateData *shim_data = fil->shim_data;
 
