@@ -2,14 +2,14 @@
 Path handling
 =============
 
-EVFS needs to be able to work with file and directory paths. The library provides functions to help you manipulate paths in an OS agnostic way. These are pure string manipulations and the referenced files and directories to not have to exist on any VFS. The operations allow you to extract portions of a path, join paths together, normalize them, and convert relative paths into absolute.
+EVFS needs to be able to work with file and directory paths. The library provides functions to help you manipulate paths in an OS agnostic way. These are pure string manipulations and the referenced files and directories do not have to exist on any VFS. The operations allow you to extract portions of a path, join paths together, normalize them, and convert relative paths into absolute.
 
 The representation of absolute paths can vary between systems. In Unix derived systems a bare '/' represents the root of the filesystem tree. On DOS/Windows systems this can be more elaborate with optional drive letters and other variants. To make path processing more universal, these functions work in conjunction with a method from each VFS that identifies the root component of a path and whether it is absolute. This portion of a path is left largely untouched by the EVFS library. Paths are passed through and validated by the underlying filesystem. Because of this behavior you will need at least one filesystem registered with EVFS before you can operate on paths. If you register multiple filesystems with different conventions for the root component you must ensure that the right VFS is referenced with its matching paths.
 
 String ranges
 -------------
 
-These functions frequently take a :c:type:`StringRange` or :c:type:`AppendRange` struct as input and output parameters. These are part of small a string utility in 'src/util/range_strings.c'. These structs represent a substring pointing into another string. :c:type:`StringRange` objects represent a substring that will not change bounds after a function call. :c:type:`AppendRange` objects cover the empty space at the end of a string to append into. They have their start position advanced after. They have the same layout and only differ by the presence of const pointers in :c:type:`StringRange`. These types can be casted back and forth as necessary.
+The EVFS path API functions frequently take a :c:type:`StringRange` or :c:type:`AppendRange` struct as input and output parameters. These are part of a small string utility in 'src/util/range_strings.c'. These structs represent a substring pointing into another string. :c:type:`StringRange` objects represent a substring that will not change bounds after a function call. :c:type:`AppendRange` objects cover the empty space at the end of a string to append into. They have their start position advanced after an append operation. They have the same layout and only differ by the presence of const pointers in :c:type:`StringRange`. These types can be casted back and forth as necessary.
 
 The general procedure for using these types is to prepare a storage area for a string, either a local array or one produced by dynamic allocation. You then initialize the :c:type:`StringRange` to cover the char array. This can be accomplished with a static initializer for true arrays or by calling :c:func:`range_init` with the start and size of the array when you have a pointer to allocated storage.
 
@@ -153,7 +153,7 @@ Most of these functions have an "_ex" suffix indicating that their last paramete
   * Consecutive separators are merged into one
   * All separators after root component are converted to EVFS_DIR_SEP
   * "./" segments are removed
-  * "../" segments are removed with the preceeding segment
+  * "../" segments are removed along with the preceeding segment
   * Trailing slashes are removed
 
   :param path:       Path to be normalized
