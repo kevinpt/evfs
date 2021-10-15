@@ -191,7 +191,7 @@ static evfs_off_t fatfs__file_size(EvfsFile *fh) {
   FatfsFile *fil = (FatfsFile *)fh;
 
   FSIZE_t size = f_size(&fil->fil);
-  return size >= 0 ? size : 0;
+  return size;
 }
 
 static int fatfs__file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin) {

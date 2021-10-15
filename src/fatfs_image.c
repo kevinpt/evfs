@@ -60,8 +60,8 @@ int fatfs_make_image(const char *img_path, uint8_t pdrv, evfs_off_t img_size) {
     // Expand image file to match configuration data
     evfs_file_seek(img->fh, img_size - 1, EVFS_SEEK_TO);
 
-    char buf[] = "\0";
-    status = evfs_file_write(img->fh, buf, sizeof(char));
+    char force_data[] = "\0";
+    status = evfs_file_write(img->fh, force_data, sizeof(char));
     if(status > 0) {
 #if FF_FS_READONLY == 0
       // Reopen for formatting

@@ -162,21 +162,6 @@ static void destroy_hashed_file(dhKey key, void *value, void *ctx) {
 }
 
 
-static bool equal_hash_keys(dhKey key1, dhKey key2, void *ctx) {
-  if(key1.length != key2.length) return false;
-
-  const char *p1 = key1.data;
-  const char *p2 = key2.data;
-
-  while(key1.length) {
-    if(*p1++ != *p2++) return false;
-    key1.length--;
-  }
-
-  return true;
-}
-
-
 static int tarfs__index_hash_init(EvfsTarIndex *ht, int total_files, size_t total_path_len) {
   dhConfig s_hash_init = {
     .init_buckets = total_files,
@@ -184,7 +169,7 @@ static int tarfs__index_hash_init(EvfsTarIndex *ht, int total_files, size_t tota
 
     .destroy_item = destroy_hashed_file,
     .gen_hash     = dh_gen_hash_string,
-    .is_equal     = equal_hash_keys
+    .is_equal     = dh_equal_hash_keys_string
   };
 
   ht->keys = evfs_malloc(total_path_len);

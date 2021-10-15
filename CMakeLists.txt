@@ -1,28 +1,24 @@
-cmake_minimum_required(VERSION 3.13.4)
-project(evfs VERSION 1.1.0 LANGUAGES C)
+cmake_minimum_required(VERSION 3.15)
 
-set (CMAKE_C_STANDARD 11)
-set (CMAKE_C_STANDARD_REQUIRED ON)
-
-# Debug options
-set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined")
-set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined")
-
-# Enable warnings
-if(MSVC)
-  add_compile_options(/W4 /WX)
-else()
-  add_compile_options(-Wall)
-endif()
+# Common build script for PC
+include(scripts/build_pc.cmake)
 
 
-# Common build config settings
+project(evfs VERSION 1.0.0 LANGUAGES C CXX ASM)
+
+
+
+##############################################################################################################
+
+
+#################### Build config settings ####################
+
 configure_file (
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs_build_config.h.in
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/evfs_build_config.h
-  )
+)
 
-# Select optional threading library for concurrent access to Gyre objects
+# Select optional threading library for concurrent access to objects
 option(USE_C11_THREADS  "Enable support for C11 threading API"    OFF)
 option(USE_PTHREADS     "Enable support for POSIX threading API"  OFF)
 
@@ -55,6 +51,12 @@ set(EVFS_LIB_SOURCE
 
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
 
+set_source_files_properties(${EVFS_LIB_SOURCE}
+  PROPERTIES
+    COMPILE_FLAGS "-Wno-sign-compare"
+)
+
+
 
 set(LFS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/vendored/littlefs")
 
@@ -77,7 +79,9 @@ set(FATFS_SOURCE
 
 
 #################### libevfs (static) ####################
+
 add_library(evfs STATIC ${EVFS_LIB_SOURCE})
+
 target_include_directories(evfs
 PUBLIC
   $<INSTALL_INTERFACE:include>
@@ -94,7 +98,12 @@ PUBLIC
 
 #################### libevfs (shared) ####################
 add_library(evfs_so SHARED ${EVFS_LIB_SOURCE})
-set_target_properties(evfs_so PROPERTIES OUTPUT_NAME evfs)
+
+set_target_properties(evfs_so
+  PROPERTIES
+    OUTPUT_NAME evfs
+)
+
 target_include_directories(evfs_so
 PUBLIC
   $<INSTALL_INTERFACE:include>
@@ -111,7 +120,9 @@ PUBLIC
 
 
 #################### test_image ####################
+
 add_executable(test_image EXCLUDE_FROM_ALL test/test_image.c)
+
 target_sources(test_image
 PRIVATE
   ${EVFS_PREFIX}/util/getopt_r.c
@@ -119,12 +130,14 @@ PRIVATE
   ${FATFS_SOURCE}
   ${LITTLEFS_SOURCE}
 )
+
 target_include_directories(test_image
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
   ${CMAKE_CURRENT_SOURCE_DIR}/vendored/littlefs
   ${CMAKE_CURRENT_SOURCE_DIR}/vendored/fatfs/source
 )
+
 target_link_libraries(test_image
 PRIVATE
   evfs
@@ -133,16 +146,20 @@ PRIVATE
 
 
 #################### test_rotate ####################
+
 add_executable(test_rotate EXCLUDE_FROM_ALL test/test_rotate.c)
+
 target_sources(test_rotate
 PRIVATE
   ${EVFS_PREFIX}/util/getopt_r.c
   ${EVFS_PREFIX}/stdio_fs.c
 )
+
 target_include_directories(test_rotate
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
+
 target_link_libraries(test_rotate
 PRIVATE
   evfs
@@ -150,32 +167,40 @@ PRIVATE
 
 
 #################### test_jail ####################
+
 add_executable(test_jail EXCLUDE_FROM_ALL test/test_jail.c)
+
 target_sources(test_jail
 PRIVATE
   ${EVFS_PREFIX}/util/getopt_r.c
   ${EVFS_PREFIX}/stdio_fs.c
 )
+
 target_include_directories(test_jail
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
+
 target_link_libraries(test_jail
 PRIVATE
   evfs
 )
 
 #################### test_tar ####################
+
 add_executable(test_tar EXCLUDE_FROM_ALL test/test_tar.c)
+
 target_sources(test_tar
 PRIVATE
   ${EVFS_PREFIX}/util/getopt_r.c
   ${EVFS_PREFIX}/stdio_fs.c
 )
+
 target_include_directories(test_tar
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
+
 target_link_libraries(test_tar
 PRIVATE
   evfs
@@ -183,7 +208,9 @@ PRIVATE
 
 
 #################### test_romfs ####################
+
 add_executable(test_romfs EXCLUDE_FROM_ALL test/test_romfs.c)
+
 target_sources(test_romfs
 PRIVATE
   ${EVFS_PREFIX}/util/getopt_r.c
@@ -191,9 +218,11 @@ PRIVATE
   test/hex_dump.c
 )
 target_include_directories(test_romfs
+
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
 )
+
 target_link_libraries(test_romfs
 PRIVATE
   evfs

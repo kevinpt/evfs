@@ -34,6 +34,8 @@ for the bucket array size.
 #ifndef DHASH_H
 #define DHASH_H
 
+#include <inttypes.h>
+
 // Set the largest number of hash entries to support.
 // This is primarily to help 8 and 16-bit platforms use a smaller data type
 // for handling bucket indices.
@@ -41,14 +43,16 @@ for the bucket array size.
 #define DH_MAX_HASH_ENTRIES  INT32_MAX
 
 
-
 // Bucket indices are signed so that -1 can indicate a failed lookup
 #if DH_MAX_HASH_ENTRIES > INT32_MAX
 typedef int64_t  dhBucketIndex;
+#  define PRIBkt  PRId64
 #elif DH_MAX_HASH_ENTRIES > INT16_MAX
 typedef int32_t  dhBucketIndex;
+#  define PRIBkt  PRId32
 #else
 typedef int16_t  dhBucketIndex;
+#  define PRIBkt  PRId16
 #  define DH_INDEX_16BIT
 #endif
 
@@ -64,6 +68,7 @@ typedef uint32_t dhIKey;  // Hashed dhKey
 
 // Callback signatures
 typedef void   (*ItemDestructor)(dhKey key, void *value, void *ctx);
+typedef bool   (*ItemReplace)(dhKey key, void *old_value, void *new_value, void *ctx);
 typedef dhIKey (*ComputeHash)(dhKey key);
 typedef bool   (*EqualKeys)(dhKey key1, dhKey key2, void *ctx);
 typedef bool   (*GrowHash)(size_t max_items, void *ctx);
@@ -78,8 +83,9 @@ typedef struct dhConfig {
 
   // Callbacks
   ItemDestructor  destroy_item; // Required callback for evicted entries
-  ComputeHash     gen_hash;     // Optional callback to convert dhKey into dhIKey
-  EqualKeys       is_equal;     // Optional callback to test if two dhKeys match (on ikey collision)
+  ComputeHash     gen_hash;     // Required callback to convert dhKey into dhIKey
+  EqualKeys       is_equal;     // Required callback to test if two dhKeys match (on ikey collision)
+  ItemReplace     replace_item; // Optional callback for replaced entries
   GrowHash        grow_hash;    // Optional callback to notify increase in hash size
 } dhConfig;
 
@@ -99,8 +105,9 @@ typedef struct dhash {
   // Callbacks
   void           *ctx;          // User context for callbacks
   ItemDestructor  destroy_item; // Required callback for evicted entries
-  ComputeHash     gen_hash;     // Optional callback to convert dhKey into dhIKey
-  EqualKeys       is_equal;     // Optional callback to test if two dhKeys match (on ikey collision)
+  ComputeHash     gen_hash;     // Required callback to convert dhKey into dhIKey
+  EqualKeys       is_equal;     // Required callback to test if two dhKeys match (on ikey collision)
+  ItemReplace     replace_item; // Optional callback for replaced entries
   GrowHash        grow_hash;    // Optional callback to notify increase in hash size
 
   bool            static_buckets; // Buckets array is from ext_storage
@@ -108,7 +115,18 @@ typedef struct dhash {
 } dhash;
 
 
+typedef struct {
+  dhash *hash;
+  dhBucketIndex bucket;
+} dhIter;
+
+
 typedef bool (*HashVisitor)(dhKey key, void *value, void *ctx);
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ******************** Resource management ********************
 bool dh_init(dhash *hash, dhConfig *config, void *ctx);
@@ -117,6 +135,10 @@ void dh_free(dhash *hash);
 // ******************** Retrieval ********************
 bool dh_lookup(dhash *hash, dhKey key, void *value);
 #define dh_exists(h, k)  dh_lookup(h, k, NULL)
+
+void dh_iter_init(dhash *hash, dhIter *it);
+bool dh_iter_next(dhIter *it, dhKey *key, void **value);
+//bool dh_iter_remove(dhIter *it, void *value);
 
 // ******************** Storage ********************
 bool dh_insert(dhash *hash, dhKey key, void *value);
@@ -139,6 +161,13 @@ void dh_dump(dhash *hash, HashVisitor print_item, void *ctx);
 void dh_foreach(dhash *hash, HashVisitor visitor, void *ctx);
 
 dhIKey dh_gen_hash_string(dhKey key);
+bool dh_equal_hash_keys_string(dhKey key1, dhKey key2, void *ctx);
+dhIKey dh_gen_hash_int(dhKey key);
+bool dh_equal_hash_keys_int(dhKey key1, dhKey key2, void *ctx);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif // DHASH_H

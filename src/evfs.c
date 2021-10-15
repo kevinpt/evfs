@@ -367,8 +367,9 @@ int evfs_register(Evfs *vfs, bool make_default) {
         s_default_vfs = vfs;
     }
 
-    if(!new_vfs)
+    if(!new_vfs) {
       UNLOCK();
+    }
 
   } else { // First VFS entry
     LOCK();

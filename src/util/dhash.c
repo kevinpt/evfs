@@ -226,35 +226,6 @@ static inline dhBucketIndex next_bucket(dhBucketIndex b, dhBucketIndex prime_ix)
 }
 
 
-// ******************** Default callbacks ********************
-
-#if defined __clang__
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wunused-function"
-#elif defined __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
-static dhIKey default_gen_hash(dhKey key) {
-  dhIKey ikey = (uintptr_t)key.data; // Assume data pointer is a plain integer key
-
-  return ikey;
-}
-
-
-// is_equal test is needed to disambiguate dhKeys that hash into the same dhIKey
-// By default we will assume collisions don't happen and skip unhashed key checks
-// This holds if the key.data pointer is treated as an integer key
-static bool default_is_equal(dhKey key1, dhKey key2, void *ctx) {
-  return true;
-}
-
-#if defined __clang__
-#  pragma clang diagnostic pop
-#elif defined __GNUC__
-#  pragma GCC diagnostic pop
-#endif
 
 // ******************** Resource management ********************
 
@@ -262,7 +233,7 @@ static bool default_is_equal(dhKey key1, dhKey key2, void *ctx) {
 // Bucket array is opaque void * so we index into it by these helpers
 static inline dhBucketEntry *dh__get_entry_unsafe(dhash *hash, dhBucketIndex b) {
   size_t bkt_off = (size_t)b * (sizeof(dhBucketEntry) + hash->value_size);
-  return hash->buckets + bkt_off;
+  return (dhBucketEntry *)((uint8_t *)hash->buckets + bkt_off);
 }
 
 static inline dhBucketEntry *dh__get_entry(dhash *hash, dhBucketIndex b) {
@@ -270,7 +241,7 @@ static inline dhBucketEntry *dh__get_entry(dhash *hash, dhBucketIndex b) {
     return NULL;
 
   size_t bkt_off = (size_t)b * (sizeof(dhBucketEntry) + hash->value_size);
-  return hash->buckets + bkt_off;
+  return (dhBucketEntry *)((uint8_t *)hash->buckets + bkt_off);
 }
 
 
@@ -279,7 +250,7 @@ static bool dh__alloc_buckets(dhash *hash, size_t new_num_buckets) {
 
 #define DH_MIN_BUCKETS   s_prime_modulus[0]
 
-  new_num_buckets = MAX(new_num_buckets, DH_MIN_BUCKETS);
+  new_num_buckets = MAX(new_num_buckets, (size_t)DH_MIN_BUCKETS);
 
   size_t bucket_size = sizeof(dhBucketEntry) + hash->value_size;
   size_t new_size = new_num_buckets * bucket_size;
@@ -290,6 +261,7 @@ static bool dh__alloc_buckets(dhash *hash, size_t new_num_buckets) {
   void *new_buckets = dh__malloc(new_size); // calloc() wrapper so already zeroed
 
   if(new_buckets) {
+//    printf("## ALLOC BKT:  %u  sz:%u\n", new_num_buckets, bucket_size);
     hash->num_buckets = new_num_buckets;
     hash->buckets = new_buckets;
 
@@ -315,7 +287,7 @@ static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_h
   if(config->max_storage > 0 && !config->ext_storage) {
     size_t max_buckets = config->max_storage / (sizeof(dhBucketEntry) + value_size);
 
-    if(num_buckets > max_buckets)
+    if((size_t)num_buckets > max_buckets)
       return false;
   }
 
@@ -345,6 +317,7 @@ static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_h
       .destroy_item = config->destroy_item,
       .gen_hash     = config->gen_hash,
       .is_equal     = config->is_equal,
+      .replace_item = config->replace_item,
       .grow_hash    = config->grow_hash
     };
 
@@ -395,7 +368,7 @@ Returns:
   true on success
 */
 bool dh_init(dhash *hash, dhConfig *config, void *ctx) {
-  if(!hash || !config || !config->destroy_item)
+  if(!hash || !config || !config->destroy_item || !config->gen_hash || !config->is_equal)
     return false;
 
   return dh__init(hash, config, ctx, /*new_hash*/true);
@@ -493,6 +466,66 @@ dhIKey dh_gen_hash_string(dhKey key) {
 }
 
 
+/*
+Test string keys for equality
+
+This is a helper function that can be used as the is_equal member in a
+dhConfig struct.
+
+Args:
+  key1:  Key to be tested
+  key2:  Key to compare against
+
+Returns:
+  true when keys are equal
+*/
+bool dh_equal_hash_keys_string(dhKey key1, dhKey key2, void *ctx) {
+  if(key1.length != key2.length) return false;
+  return !strncmp(key1.data, key2.data, key1.length);
+}
+
+
+/*
+"Hash" an integer key
+
+This is a helper function that can be used as the gen_hash member in a
+dhConfig struct.
+
+This just passes an integer key through to be hashed by the dhash second level
+hash function. Only use this if your key is the same size or smaller than dhIKey.
+
+Args:
+  key:  The key to be hashed
+
+Returns:
+  Hashed value of key
+*/
+dhIKey dh_gen_hash_int(dhKey key) {
+  dhIKey ikey = (uintptr_t)key.data; // Data pointer is an integer
+
+  // This will be hashed by dh__hash_int()
+  return ikey;
+}
+
+
+/*
+Test integer keys for equality
+
+This is a helper function that can be used as the is_equal member in a
+dhConfig struct.
+
+Args:
+  key1:  Key to be tested
+  key2:  Key to compare against
+
+Returns:
+  true when keys are equal
+*/
+bool dh_equal_hash_keys_int(dhKey key1, dhKey key2, void *ctx) {
+  return (uintptr_t)key1.data == (uintptr_t)key2.data;
+}
+
+
 // ******************** Retrieval ********************
 
 // Find the starting bucket for a probe sequence
@@ -510,11 +543,12 @@ static inline dhBucketIndex dh__initial_probe(dhash *hash, dhIKey ikey) {
 // Returns DH_ERR_KEY_NOT_FOUND if the key was not found
 //         DH_ERR_TOO_MANY_PROBES if probe count exceeded
 static inline dhBucketIndex dh__find_bucket(dhash *hash, dhKey key, dhBucketEntry **found_entry) {
-
   dhIKey ikey = dh__hash(hash, key);
   dhBucketIndex b = dh__initial_probe(hash, ikey);
   dhBucketEntry *entry = dh__get_entry_unsafe(hash, b);
   uint16_t probes = 1;
+
+  *found_entry = NULL;
 
   while(1) {
     if(!IN_USE(entry) || (probes > PROBE_COUNT(entry))) {
@@ -555,14 +589,14 @@ Returns:
   true if item exists and non-NULL in value
 */
 bool dh_lookup(dhash *hash, dhKey key, void *value) {
+
   dhBucketEntry *entry = NULL;
   dh__find_bucket(hash, key, &entry);
   //printf("## GOT BUCKET: %d\n", b);
 
-  if(entry && IN_USE(entry) && !WAS_DELETED(entry)) { // Found match
+  if(entry && !WAS_DELETED(entry)) { // Found match
     if(value)
       memcpy(value, &entry->value_obj, hash->value_size);
-
     return true;
   }
 
@@ -621,6 +655,13 @@ static inline bool dh__insert_ex(dhash *hash, dhKey key, void *value, dhIKey ike
 #endif
                                 hash->is_equal(entry->key, key, hash->ctx)) {
        // Match to existing key: Replace value
+      bool replace_ok = true;
+      if(hash->replace_item)
+        replace_ok = hash->replace_item(entry->key, &entry->value_obj, value, hash->ctx);
+
+      if(!replace_ok)
+        return false;
+
       hash->destroy_item(entry->key, &entry->value_obj, hash->ctx);
       entry->key = key;
       memcpy(&entry->value_obj, value, hash->value_size);
@@ -692,7 +733,7 @@ static inline bool dh__grow(dhash *hash, dhBucketIndex new_buckets) {
   if(new_buckets <= num_old_buckets)
     new_buckets = num_old_buckets+1; // This will round up to the next prime size
 
-  //printf("## GROW HASH: %d\n", new_buckets);
+  //printf("## GROW HASH: %lu\n", new_buckets);
 
   // Disconnect bucket array so we can restore it if grow fails
   dhBucketEntry *old_buckets = hash->buckets;
@@ -705,6 +746,7 @@ static inline bool dh__grow(dhash *hash, dhBucketIndex new_buckets) {
     .destroy_item = hash->destroy_item,
     .gen_hash     = hash->gen_hash,
     .is_equal     = hash->is_equal,
+    .replace_item = hash->replace_item,
     .grow_hash    = hash->grow_hash
   };
 
@@ -715,19 +757,25 @@ static inline bool dh__grow(dhash *hash, dhBucketIndex new_buckets) {
     return false;
   }
 
-  //printf("## GROW: %zu\n", hash->num_buckets));
+//  printf("## GROW: %lu %u + %u -> %u\n", hash->num_buckets, hash->value_size, 
+//    sizeof(dhBucketEntry), sizeof(dhBucketEntry) + hash->value_size);
 
   // Copy old items
+  size_t bkt_off = 0;
   for(dhBucketIndex b = 0; b < num_old_buckets; b++) {
-    dhBucketEntry *item = &old_buckets[b];
+    dhBucketEntry *item = (dhBucketEntry *)((uint8_t *)old_buckets + bkt_off);
 
     if(IN_USE(item) && !WAS_DELETED(item)) {
 #ifdef DH_USE_MEMOIZED_HASH
+//      printf("## INS %lu: %08lX = %08X  @ %u\n", b, item->ikey, (uintptr_t)&item->value_obj,
+//              bkt_off);
       dh__insert_ex(hash, item->key, &item->value_obj, item->ikey); // Skip rehash of key
 #else
       dh__insert(hash, item->key, &item->value_obj);
 #endif
     }
+
+    bkt_off += sizeof(dhBucketEntry) + hash->value_size;
   }
 
   dh__free(old_buckets);
@@ -956,6 +1004,26 @@ int dh_max_probe_count(dhash *hash) {
 }
 
 
+static void dh__dump_entry(dhash *hash, dhBucketEntry *entry, dhBucketIndex b) {
+    printf("  %3" PRIBkt ": k=%08" PRIX32 " v=%p (%08" PRIXPTR "), flag=%01X probes=%d init=%" PRIBkt "\n", b, 
+#ifdef DH_USE_MEMOIZED_HASH
+      entry->ikey,
+#else
+      -1,
+#endif
+      &entry->value_obj, (uintptr_t)entry->value_obj[0],
+      //entry->flags,
+      entry->deleted,
+      PROBE_COUNT(entry),
+#ifdef DH_USE_MEMOIZED_HASH
+      dh__initial_probe(hash, entry->ikey)
+#else
+      -1
+#endif
+    );
+
+}
+
 
 /*
 Print a dump of internal data on the hash
@@ -969,27 +1037,12 @@ void dh_dump(dhash *hash, HashVisitor print_item, void *ctx) {
   dhBucketIndex num_buckets = hash->num_buckets;
   dhBucketEntry *entry;
 
-  puts("Hash dump:");
-  for(int b = 0; b < num_buckets; b++) {
+  printf("Hash dump (%" PRIBkt "):\n", num_buckets);
+  for(dhBucketIndex b = 0; b < num_buckets; b++) {
     entry = dh__get_entry_unsafe(hash, b);
     if(!IN_USE(entry)) continue;
 
-    printf("  %3d: k=%4d v=%p (%zu), flag=%01X probes=%d init=%d\n", b, 
-#ifdef DH_USE_MEMOIZED_HASH
-      entry->ikey,
-#else
-      -1,
-#endif
-      &entry->value_obj, (uintptr_t)entry->value_obj,
-      //entry->flags,
-      entry->deleted,
-      PROBE_COUNT(entry),
-#ifdef DH_USE_MEMOIZED_HASH
-      dh__initial_probe(hash, entry->ikey)
-#else
-      -1
-#endif
-    );
+    dh__dump_entry(hash, entry, b);
 
     if(print_item && IN_USE(entry) && !WAS_DELETED(entry))
       print_item(entry->key, &entry->value_obj, ctx);
@@ -1014,7 +1067,7 @@ void dh_foreach(dhash *hash, HashVisitor visitor, void *ctx) {
   dhBucketEntry *entry;
   for(dhBucketIndex b = 0; b < num_buckets; b++) {
     entry = dh__get_entry_unsafe(hash, b);
-    if(!IN_USE(entry))
+    if(!IN_USE(entry)) // FIXME: Check was_deleted???
       continue;
 
     if(!visitor(entry->key, &entry->value_obj, ctx))
@@ -1024,149 +1077,58 @@ void dh_foreach(dhash *hash, HashVisitor visitor, void *ctx) {
 
 
 
+/*
+Start iterator for hash
 
-#if 0
+You must call dh_iter_next() to get the first item in the sequence
 
-void destroy_hashed(dhKey key, void *value) {
-  //printf("### DESTROY: %d\n", (uintptr_t)value);
+Args:
+  hash: Hash to iterate
+  it:   Iterator to init
+*/
+void dh_iter_init(dhash *hash, dhIter *it) {
+  it->hash = hash;
+  it->bucket = 0;
+  it->bucket--;
 }
 
-int main(int argc, char *argv[]) {
-  dhash *h;
-
-  dhConfig cfg = {
-    .init_buckets = 11,
-    .destroy_item = destroy_hashed
-  };
-
-  h = calloc(1, sizeof(dhash));
-
-  printf("X\n");
-  dh_init(h, &cfg);
-  printf("Y\n");
-
-
-#define KEY(n) (dhKey){.data=(void *)(uintptr_t)(n), .length=1}
-
-  dh_insert(h, KEY(1), (void *)(41));
-  dh_insert(h, KEY(2), (void *)(43));
-  dh_insert(h, KEY(3), (void *)(44));
-  dh_insert(h, KEY(40), (void *)(42));
-  dh_insert(h, KEY(50), (void *)(42));
-  dh_insert(h, KEY(60), (void *)(42));
-  dh_insert(h, KEY(70), (void *)(42));
-  dh_insert(h, KEY(80), (void *)(42));
-  dh_insert(h, KEY(90), (void *)(42));
-  dh_insert(h, KEY(100), (void *)(42));
-  dh_insert(h, KEY(110), (void *)(42));
-  dh_insert(h, KEY(120), (void *)(42));
-  dh_insert(h, KEY(130), (void *)(422));
-  dh_insert(h, KEY(140), (void *)(42));
-  dh_insert(h, KEY(150), (void *)(42));
-  dh_insert(h, KEY(4), (void *)(45));
-  dh_insert(h, KEY(5), (void *)(45));
-  dh_insert(h, KEY(6), (void *)(45));
-  dh_insert(h, KEY(7), (void *)(45));
-
-  dh_insert(h, KEY(3), (void *)(45));
-  dh_insert(h, KEY(3), (void *)(46));
-  //dh_insert(h, 3, (void *)(47), NULL);
-  //dh_insert(h, 3, (void *)(48), NULL);
-
-  dh_insert(h, KEY(200), (void *)(48));
-  dh_insert(h, KEY(201), (void *)(48));
-  dh_insert(h, KEY(202), (void *)(48));
-  dh_insert(h, KEY(203), (void *)(48));
-  dh_insert(h, KEY(204), (void *)(48));
-  dh_insert(h, KEY(205), (void *)(48));
-  dh_insert(h, KEY(206), (void *)(48));
-  dh_insert(h, KEY(207), (void *)(48));
-  dh_insert(h, KEY(208), (void *)(48));
-  dh_insert(h, KEY(209), (void *)(48));
-  dh_insert(h, KEY(210), (void *)(48));
-  dh_insert(h, KEY(211), (void *)(48));
-  dh_insert(h, KEY(212), (void *)(48));
-  dh_insert(h, KEY(213), (void *)(48));
-  dh_insert(h, KEY(214), (void *)(48));
-  dh_insert(h, KEY(215), (void *)(48));
-  dh_insert(h, KEY(216), (void *)(48));
-  dh_insert(h, KEY(217), (void *)(48));
-  dh_insert(h, KEY(218), (void *)(48));
-  dh_insert(h, KEY(219), (void *)(48));
-
-
-  void *vpv;
-  dh_lookup(h, KEY(1), &vpv); printf("lookup: k %d -> %zu\n", 1, (uintptr_t)vpv);
-  dh_lookup(h, KEY(2), &vpv); printf("lookup: k %d -> %zu\n", 2, (uintptr_t)vpv);
 
 /*
+Start iterator for hash
 
-  for(uintptr_t i = 0; i < 2; i++) {
-    //printf("| insert %d\n", i);
-    dh_insert(&h, i, (void *)(i*10));
-  }
+WARNING: Do not hold onto the value pointer in long term storage. It points directly into the
+hash bucket array and will become invalid when the hash grows.
 
-
-  dh_remove(&h, 5);
-  dh_remove(&h, 6);
-  dh_remove(&h, 7);
-
-
-  printf("A\n");
-  for(uintptr_t i = 0; i < 9; i++) {
-    dh_insert(&h, i+100, (void *)(i*100));
-  }
-  printf("B\n");
-
-  void *v;
-  for(uintptr_t i = 0; i < 10; i++) {
-    bool found = dh_lookup(&h, i, &v);
-    printf("Lookup %d = %d  %d\n", i, (uintptr_t)v, found);
-  }
-  printf("C\n");
+Args:
+  it:     Iterator to advance
+  key:    Key of current item
+  value:  Pointer to item value data
+Returns:
+  true when iterator key and value are valid
 */
+bool dh_iter_next(dhIter *it, dhKey *key, void **value) {
+  dhBucketIndex num_buckets = it->hash->num_buckets;
+  dhBucketEntry *entry;
 
-  dh_dump(h, NULL, NULL);
+  it->bucket++; // Unconditional inc to force rollover from -1 to 0
 
-  dh_free(h);
-  free(h);
-
-  printf("## Exhaustive test");
-
-  dhash h2, h3;
-  uintptr_t max_items = 100;
-  uintptr_t offset = 0; //24984087;
-
-  dh_init(&h2, &cfg);
-
-  cfg.init_buckets = max_items*3;
-  dh_init(&h3, &cfg);
-
-  for(uintptr_t i = 0; i < max_items; i++) {
-    dh_insert(&h2, KEY(i+offset), (void *)(i+offset));
-    dh_insert(&h3, KEY(i+offset), (void *)(i+offset));
+  if(it->bucket >= num_buckets) { // Exhausted
+    it->bucket = num_buckets;
+    return false;
   }
 
-  uintptr_t h2_val, h3_val;
+  // Search for next used bucket
+  while(it->bucket < num_buckets) {
+    entry = dh__get_entry_unsafe(it->hash, it->bucket);
+    if(IN_USE(entry)) {
+      *key = entry->key;
+      *value = &entry->value_obj;
+      return true;
+    }
 
-  int matches = 0;
-  for(uintptr_t i = 0; i < max_items; i++) {
-    dh_lookup(&h2, KEY(i+offset), (void **)&h2_val);
-    dh_lookup(&h3, KEY(i+offset), (void **)&h3_val);
-    if(h2_val != h3_val || h2_val != i+offset)
-      printf("ERROR: Mismatch on %ld\n", i+offset);
-    else
-      matches++;
+    it->bucket++;
   }
 
-  printf("\t%d match\n", matches);
-
-  dh_dump(&h2, NULL, NULL);
-
-  dh_free(&h2);
-  dh_free(&h3);
-
-
-  return 0;
+  return false; // Nothing left
 }
-#endif
+

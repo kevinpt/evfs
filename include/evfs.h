@@ -47,7 +47,7 @@ typedef struct EvfsInfo EvfsInfo;
 
 
 // Type for working with file sizes and offsets
-#if EVFS_FILE_OFFSET_BITS == 64
+#if defined EVFS_FILE_OFFSET_BITS && EVFS_FILE_OFFSET_BITS == 64
   typedef int64_t evfs_off_t;
 #else
   // Max supported file size will be 2GiB

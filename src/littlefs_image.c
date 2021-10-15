@@ -46,8 +46,8 @@ int littlefs_make_image(const char *img_path, struct lfs_config *cfg) {
     // Expand image file to match configuration data
     evfs_file_seek(img->fh, cfg->block_size*cfg->block_count - 1, EVFS_SEEK_TO);
 
-    char buf[] = "\0";
-    status = evfs_file_write(img->fh, buf, sizeof(char));
+    char force_data[] = "\0";
+    status = evfs_file_write(img->fh, force_data, sizeof(char));
     if(status > 0) {
       // Reopen for formatting
       evfs_file_close(img->fh);

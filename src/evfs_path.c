@@ -201,7 +201,7 @@ int evfs_vfs_path_join(Evfs *vfs, StringRange *head, StringRange *tail, StringRa
   if(ASSERT(joined_len < EVFS_MAX_PATH, "joined string too long")) return EVFS_ERR_OVERFLOW;
 #endif
 
-  if(ASSERT(joined_len <= range_size(&joined_a), "joined string too long")) return EVFS_ERR_OVERFLOW;
+  if(ASSERT(joined_len <= (size_t)range_size(&joined_a), "joined string too long")) return EVFS_ERR_OVERFLOW;
 
 
   range_cat_range(&joined_a, head);
@@ -212,7 +212,7 @@ int evfs_vfs_path_join(Evfs *vfs, StringRange *head, StringRange *tail, StringRa
   StringRange root;
   vfs->m_path_root_component(vfs, head->start, &root);
 
-  if(head_len > 0 && head_len != range_size(&root))
+  if(head_len > 0 && head_len != (size_t)range_size(&root))
     range_cat_char(&joined_a, EVFS_DIR_SEP);
 
   if(tail_len > 0)
@@ -295,7 +295,7 @@ int evfs_vfs_path_normalize(Evfs *vfs, const char *path, StringRange *normalized
   // Scan the path to construct bitmask
   bool new_tok = range_token(path_start, EVFS_PATH_SEPS, &token);
   while(new_tok) {
-    if(tok_count+1 > MAX_SEGMENTS) // Too many segments; Use fallback
+    if(tok_count+1 > (int)MAX_SEGMENTS) // Too many segments; Use fallback
       return path_normalize_long(vfs, path, &norm_r);
 
 
@@ -645,7 +645,7 @@ static int path_absolute_from_rel_overlap(Evfs *vfs, const char *path, StringRan
   with absolute.
   */
   if(path != absolute->start) {
-    if(path_len+1 > range_size(absolute)) // Give up if we can't fit
+    if(path_len+1 > (size_t)range_size(absolute)) // Give up if we can't fit
       return EVFS_ERR_OVERFLOW;
 
     memmove((char *)absolute->start, path, path_len+1);

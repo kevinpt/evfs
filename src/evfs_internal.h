@@ -142,7 +142,7 @@ void evfs__init_once(void); // Must be provided by threading wrapper
 
 typedef unsigned EvfsLock;
 
-int static inline evfs__nop(EvfsLock *(l)) { return 0; }
+static inline int evfs__nop(EvfsLock *(l)) { return 0; }
 
 #define evfs__lock_init(l)     evfs__nop(l)
 #define evfs__lock_destroy(l)  evfs__nop(l)

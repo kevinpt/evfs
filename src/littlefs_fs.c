@@ -139,9 +139,9 @@ static int make_absolute_path(Evfs *vfs, const char *path, char **absolute, bool
 
 // Prepare a buffer for the absolute path
 #define MAKE_ABS(path, abs_path) char *abs_path; do { \
- int status = make_absolute_path(vfs, path, &abs_path, false); \
- if(status != EVFS_OK) \
-    return status; \
+ int status_ma = make_absolute_path(vfs, path, &abs_path, false); \
+ if(status_ma != EVFS_OK) \
+    return status_ma; \
 } while(0)
 
 
