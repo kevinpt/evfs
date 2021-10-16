@@ -33,14 +33,16 @@ General purpose approximate search functions.
 #ifndef SEARCH_H
 #define SEARCH_H
 
+typedef ptrdiff_t (*CompareNearFunc)(const void *pkey,const void *pentry);
+
 size_t search_nearest(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem));
+                       CompareNearFunc compare_near);
 
 size_t search_nearest_above(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem));
+                       CompareNearFunc compare_near);
 
 size_t search_nearest_below(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem));
+                       CompareNearFunc compare_near);
 
 
 

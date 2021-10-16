@@ -27,6 +27,35 @@ DEALINGS IN THE SOFTWARE.
 search
 
 General purpose approximate search functions.
+
+This uses a generalized binary search that requires the array to be sorted.
+
+The search functions always return a valid index. If the key is before or after the
+lowest or highest entries in the array then 0 or max index will be returned.
+
+
+USAGE:
+
+Define a comparison function of type CompareNearFunc that returns the magnitude
+of the difference between the search key and a trial entry. Returns 0 for
+equality. When array is sorted in ascending order, negative values indicate the key
+will be found before the trial entry and positive values for a key after the trial.
+This logic reverses if the array is sorted in descending order.
+
+
+  ptrdiff_t compare(const void *pkey, const void *pentry) {
+    int key = *(int *)pkey;
+    int entry = *(int *)pentry;
+
+    return key - entry;
+  }
+
+  int a[] = {10, 20, 30, 40};
+
+  size_t find_key(int key) {
+    return search_nearest(&key, a, 4, sizeof(a[0]), compare);
+  }
+
 ------------------------------------------------------------------------------
 */
 
@@ -53,7 +82,7 @@ Returns:
   The nearest index in the array
 */
 size_t search_nearest(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem)) {
+                       CompareNearFunc compare_near) {
 
   // NOTE: high can drop below 0 so we need indices to be signed
   ptrdiff_t low = 0;
@@ -111,7 +140,7 @@ Returns:
   The nearest index in the array >= key
 */
 size_t search_nearest_above(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem)) {
+                       CompareNearFunc compare_near) {
 
   size_t ix = search_nearest(key, base, num, item_size, compare_near);
 
@@ -140,7 +169,7 @@ Returns:
   The nearest index in the array <= key
 */
 size_t search_nearest_below(const void *key, const void *base, size_t num, size_t item_size,
-                       ptrdiff_t (*compare_near)(const void *pkey,const void *pelem)) {
+                       CompareNearFunc compare_near) {
 
   size_t ix = search_nearest(key, base, num, item_size, compare_near);
 
@@ -151,30 +180,3 @@ size_t search_nearest_below(const void *key, const void *base, size_t num, size_
   return ix;
 }
 
-
-
-/*
-int comp_ints(const void *pkey, const void *pelem) {
-  int key = *(int *)pkey;
-  int elem = *(int *)pelem;
-
-  return key - elem;
-}
-
-
-
-#define COUNT_OF(a) (sizeof(a) / sizeof(*a))
-
-int main(int argc, char *argv[]) {
-  int a[] = {10, 20, 30, 40};
-  
-  for(int v = 0; v < 44; v++) {
-    //ptrdiff_t ix = search_int(a, sizeof(a) / sizeof(int), v);
-    size_t ix = search_nearest_below(&v, a, COUNT_OF(a), sizeof(int), comp_ints);
-
-    printf("v: %d  @:%d  = %d\n", v, ix, ix >= 0 ? a[ix] : -1);
-  }
-
-  return 0;
-}
-*/
