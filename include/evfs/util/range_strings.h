@@ -57,14 +57,18 @@ typedef struct {
 
 // ******************** Range initialization ********************
 
-#define range_init(r, s, l) do { \
-    (r)->start = (s);       \
-    (r)->end   = (s) + (l); \
+#define range_init(rng, strt, len) do { \
+    (rng)->start = (strt);       \
+    (rng)->end   = (strt) + (len); \
   } while(0)
 
 
 // Span of the full range ignoring NUL chars
 #define range_size(r) ((r)->end - (r)->start)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 size_t range_strlen(StringRange *rng);
 
@@ -84,6 +88,8 @@ int range_cat_range_no_nul(AppendRange *rng, StringRange *src_rng);
 int range_cat_char(AppendRange *rng, char ch);
 int range_cat_char_no_nul(AppendRange *rng, char ch);
 
+int range_cat_ufixed(AppendRange *rng, unsigned int value, unsigned int scale, unsigned int places);
+int range_cat_fixed(AppendRange *rng, int value, unsigned int scale, unsigned int places);
 
 // ******************** Whitespace trimming ********************
 void range_ltrim(StringRange *rng);
@@ -104,5 +110,10 @@ bool range_is_int(StringRange *rng);
 // ******************** Tokenizing ********************
 bool range_token(const char *str, const char *delim, StringRange *token);
 bool range_token_limit(const char *str, const char *delim, StringRange *token, size_t *limit);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // RANGE_STRINGS_H

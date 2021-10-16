@@ -98,6 +98,7 @@ for strtok_r() with the benefit that the input string is not altered.
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <ctype.h>
 #include "range_strings.h"
@@ -430,6 +431,175 @@ int range_cat_char_no_nul(AppendRange *rng, char ch) {
   }
 
   return -1;
+}
+
+
+// __builtin_clz() added in GCC 3.4 and Clang 5
+#if (defined __GNUC__ && __GNUC__ >= 4) || (defined __clang__ && __clang_major__ >= 5)
+#  define HAVE_BUILTIN_CLZ
+#endif
+
+#ifdef HAVE_BUILTIN_CLZ
+#  define clz(x)  __builtin_clz(x)
+#else
+// Count leading zeros
+// From Hacker's Delight 2nd ed. Fig 5-12. Modified to support 16-bit ints.
+static int clz(unsigned x) {
+  static_assert(sizeof(x) <= 4, "clz() only supports a 32-bit or 16-bit argument");
+  unsigned y;
+  int n = sizeof(x) * 8;
+
+  if(sizeof(x) > 2) { // 32-bit x
+    y = x >> 16; if(y) {n -= 16; x = y;}
+  }
+  y = x >> 8;  if(y) {n -= 8; x = y;}
+  y = x >> 4;  if(y) {n -= 4; x = y;}
+  y = x >> 2;  if(y) {n -= 2; x = y;}
+  y = x >> 1;  if(y) return n - 2;
+
+  return n - x;
+}
+#endif
+
+// Floor(log10(n))
+// From Hacker's Delight 2nd ed. Fig 11-10
+static int ilog10(uint32_t n) {
+  int log;
+
+  // Estimated base-10 log. Produces wrong result for some ranges of values.
+  static const uint8_t log10_est[] = {
+              // clz()    base-10 range
+    9,9,9,    // 0 - 2    (2**32-1 - 2**29)
+    8,8,8,    // 3 - 5    (2**29-1 - 2**26)
+    7,7,7,    // 6 - 8    (2**26-1 - 2**23)
+    6,6,6,6,  // 9 - 12   (2**23-1 - 2**19)
+    5,5,5,    // 13 - 15  (2**19-1 - 65536)
+    4,4,4,    // 16 - 18  (65535 - 8192)
+    3,3,3,3,  // 19 - 22  (8191 - 512)
+    2,2,2,    // 23 - 25  (511 - 64)
+    1,1,1,    // 26 - 28  (63 - 8)
+    0,0,0,0   // 29 - 32  (7 - 0)
+  };
+
+  // Thresholds for correcting initial estimate
+  static const uint32_t pow10[] = {
+    1, 10, 100, 1000, 10000, 100000,
+    1000000, 10000000, 100000000, 1000000000
+  };
+
+  log = log10_est[clz(n)];
+  if(n < pow10[log]) // Apply correction
+    log--;
+
+  return log;
+}
+
+// Get number of digits needed to represent n
+static inline unsigned int base10_digits(uint32_t n) {
+  if(n == 0)
+    return 1;
+  else
+    return ilog10(n) + 1;
+}
+
+
+/*
+Concatenate an unsigned fixed point integer to a range
+
+Args:
+  rng:      Target string for value
+  value:    Fixed point value to format
+  scale:    Scale factor for value
+  places:   Number of fractional decimal places in output
+
+Returns:
+  Number of bytes written if positive
+  Number of bytes needed if negative
+*/
+int range_cat_ufixed(AppendRange *rng, unsigned int value, unsigned int scale, unsigned int places) {
+  unsigned int integer = value / scale;
+  unsigned int frac = value % scale;
+
+  // Give ourselves an extra digit for initial rounding
+  unsigned int scale_b10_digits = base10_digits(scale) + 1;
+
+  // get 10 ^ (base10_digits(scale)+1)
+  unsigned int scale_b10 = 1;
+  for(unsigned int i = 0; i < scale_b10_digits-1; i++) {
+    scale_b10 *= 10;
+  }
+
+  // Convert fraction to base-10
+  frac = frac * scale_b10 / scale;
+
+  // Round up and remove extra digit
+  frac = (frac + 5) / 10;
+  scale_b10 /= 10;  // Set to true base-10 scale
+
+  unsigned int frac_digits = scale_b10_digits - 2;  // Remove extra digit for round
+
+  if(places > 0) {
+    // Reduce digits if fraction is larger than requested decimal places
+    while(frac_digits > places+1) { // Initial scale down without rounding
+      frac /= 10;
+      frac_digits--;
+    }
+
+    if(frac_digits > places) { // Final adjust with rounding
+      frac += 5;  // Start round up in last decimal place
+
+      if(frac > scale_b10) { // Rounded into integer
+        integer++;
+        frac = 0; // No fraction part
+        frac_digits = 1;
+
+      } else {  // Finish last adjustment
+        frac /= 10;
+        frac_digits--;
+      }
+    }
+
+  } else {  // places == 0; No fraction part
+    // Check for rounding into integer
+    if(frac + scale_b10/2 > scale_b10)  // Round up in 1/10ths place
+      integer++;
+
+    frac = 0;
+    frac_digits = 1;
+  }
+
+  return range_cat_fmt(rng, "%u.%0*u", integer, frac_digits, frac);
+}
+
+
+
+/*
+Concatenate a signed fixed point integer to a range
+
+Args:
+  rng:      Target string for value
+  value:    Fixed point value to format
+  scale:    Scale factor for value
+  places:   Number of fractional decimal places in output
+
+Returns:
+  Number of bytes written if positive
+  Number of bytes needed if negative
+*/
+int range_cat_fixed(AppendRange *rng, int value, unsigned int scale, unsigned int places) {
+  int status = 0;
+
+  // Convert to positive and add '-' if value was negative
+
+  if(value < 0) {
+    value = -value; // NOTE: Does not work with INT_MIN
+    status = range_cat_char(rng, '-');
+  }
+
+  if(status >= 0)
+    status += range_cat_ufixed(rng, (unsigned int)value, scale, places);
+
+  return status;
 }
 
 
