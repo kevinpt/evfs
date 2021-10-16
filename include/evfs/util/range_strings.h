@@ -88,8 +88,8 @@ int range_cat_range_no_nul(AppendRange *rng, StringRange *src_rng);
 int range_cat_char(AppendRange *rng, char ch);
 int range_cat_char_no_nul(AppendRange *rng, char ch);
 
-int range_cat_ufixed(AppendRange *rng, unsigned int value, unsigned int scale, unsigned int places);
-int range_cat_fixed(AppendRange *rng, int value, unsigned int scale, unsigned int places);
+int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned scale, unsigned places);
+int range_cat_fixed(AppendRange *rng, int value, unsigned scale, unsigned places);
 
 // ******************** Whitespace trimming ********************
 void range_ltrim(StringRange *rng);

@@ -95,12 +95,12 @@ for strtok_r() with the benefit that the input string is not altered.
 ------------------------------------------------------------------------------
 */
 
-#include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <assert.h> // For static_assert
 #include "range_strings.h"
 
 
@@ -495,7 +495,7 @@ static int ilog10(uint32_t n) {
 }
 
 // Get number of digits needed to represent n
-static inline unsigned int base10_digits(uint32_t n) {
+static inline unsigned base10_digits(uint32_t n) {
   if(n == 0)
     return 1;
   else
@@ -516,16 +516,16 @@ Returns:
   Number of bytes written if positive
   Number of bytes needed if negative
 */
-int range_cat_ufixed(AppendRange *rng, unsigned int value, unsigned int scale, unsigned int places) {
-  unsigned int integer = value / scale;
-  unsigned int frac = value % scale;
+int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned scale, unsigned places) {
+  unsigned integer = value / scale;
+  unsigned frac = value % scale;
 
   // Give ourselves an extra digit for initial rounding
-  unsigned int scale_b10_digits = base10_digits(scale) + 1;
+  unsigned scale_b10_digits = base10_digits(scale) + 1;
 
   // get 10 ^ (base10_digits(scale)+1)
-  unsigned int scale_b10 = 1;
-  for(unsigned int i = 0; i < scale_b10_digits-1; i++) {
+  unsigned scale_b10 = 1;
+  for(unsigned i = 0; i < scale_b10_digits-1; i++) {
     scale_b10 *= 10;
   }
 
@@ -536,7 +536,7 @@ int range_cat_ufixed(AppendRange *rng, unsigned int value, unsigned int scale, u
   frac = (frac + 5) / 10;
   scale_b10 /= 10;  // Set to true base-10 scale
 
-  unsigned int frac_digits = scale_b10_digits - 2;  // Remove extra digit for round
+  unsigned frac_digits = scale_b10_digits - 2;  // Remove extra digit for round
 
   if(places > 0) {
     // Reduce digits if fraction is larger than requested decimal places
@@ -586,7 +586,7 @@ Returns:
   Number of bytes written if positive
   Number of bytes needed if negative
 */
-int range_cat_fixed(AppendRange *rng, int value, unsigned int scale, unsigned int places) {
+int range_cat_fixed(AppendRange *rng, int value, unsigned scale, unsigned places) {
   int status = 0;
 
   // Convert to positive and add '-' if value was negative
@@ -597,7 +597,7 @@ int range_cat_fixed(AppendRange *rng, int value, unsigned int scale, unsigned in
   }
 
   if(status >= 0)
-    status += range_cat_ufixed(rng, (unsigned int)value, scale, places);
+    status += range_cat_ufixed(rng, (unsigned)value, scale, places);
 
   return status;
 }
