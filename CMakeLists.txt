@@ -8,9 +8,6 @@ project(evfs VERSION 1.0.0 LANGUAGES C CXX ASM)
 
 
 
-##############################################################################################################
-
-
 #################### Build config settings ####################
 
 configure_file (
@@ -96,6 +93,7 @@ add_library(evfs_so SHARED ${EVFS_LIB_SOURCE})
 set_target_properties(evfs_so
   PROPERTIES
     OUTPUT_NAME evfs
+    VERSION     ${PROJECT_VERSION}
 )
 
 target_include_directories(evfs_so
