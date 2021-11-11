@@ -17,7 +17,14 @@ Embedded Virtual Filesystem
 #ifndef LITTLEFS_FS_H
 #define LITTLEFS_FS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_littlefs(const char *vfs_name, lfs_t *lfs, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LITTLEFS_FS_H

@@ -17,8 +17,15 @@ Embedded Virtual Filesystem
 #ifndef ROMFS_FS_H
 #define ROMFS_FS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_romfs(const char *vfs_name, EvfsFile *image, bool default_vfs);
 int evfs_register_rsrc_romfs(const char *vfs_name, const uint8_t *resource, size_t resource_len, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ROMFS_FS_H

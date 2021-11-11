@@ -17,7 +17,14 @@ Embedded Virtual Filesystem
 #ifndef TAR_FS_H
 #define TAR_FS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_tar_fs(const char *vfs_name, EvfsFile *tar_file, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TAR_FS_H

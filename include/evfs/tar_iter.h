@@ -15,6 +15,9 @@ typedef struct TarFileIterator {
 
 } TarFileIterator;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void tar_iter_init(TarFileIterator *tar_it, EvfsFile *fd);
 void tar_iter_close(TarFileIterator *tar_it);
@@ -25,6 +28,9 @@ bool tar_iter_next(TarFileIterator *tar_it);
 
 evfs_off_t tar_iter_file_offset(TarFileIterator *tar_it);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TAR_ITER_H
 

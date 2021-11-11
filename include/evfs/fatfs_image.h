@@ -22,9 +22,16 @@ typedef struct FatfsImage_s {
   FATFS fs;
 } FatfsImage;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int fatfs_make_image(const char *img_path, uint8_t pdrv, evfs_off_t img_size);
 int fatfs_mount_image(const char *img_path, uint8_t pdrv);
 void fatfs_unmount_image(uint8_t pdrv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FATFS_IMAGE_H

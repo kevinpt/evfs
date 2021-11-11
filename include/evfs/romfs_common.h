@@ -80,6 +80,9 @@ typedef struct Romfs {
 } Romfs;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int romfs_init(Romfs *fs, RomfsConfig *cfg);
 
@@ -97,6 +100,9 @@ static inline int romfs_lookup_abs_path(Romfs *fs, const char *path, RomfsFileHe
 
 void romfs_unmount(Romfs *fs);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ROMFS_COMMON_H
 

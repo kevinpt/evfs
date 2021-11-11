@@ -17,7 +17,14 @@ Embedded Virtual Filesystem
 #ifndef FATFS_FS_H
 #define FATFS_FS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_fatfs(const char *vfs_name, uint8_t pdrv, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FATFS_FS_H

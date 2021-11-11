@@ -235,6 +235,10 @@ enum EvfsCommands {
 #define evfs_free(p)    free(p)
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char *evfs_err_name(int err);
 const char *evfs_cmd_name(int cmd);
 
@@ -444,6 +448,11 @@ int evfs_dir_find(EvfsDir *dh, const char *pattern, EvfsInfo *info);
 // ******************** String output ********************
 int evfs_file_printf(EvfsFile *fh, const char *fmt, ...);
 int evfs_file_puts(EvfsFile *fh, const char *str);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // EVFS_H
 

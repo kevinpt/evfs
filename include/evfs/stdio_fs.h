@@ -17,8 +17,14 @@ Embedded Virtual Filesystem
 #ifndef STDIO_FS_H
 #define STDIO_FS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_stdio(bool default_vfs);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // STDIO_FS_H
