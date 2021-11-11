@@ -197,7 +197,10 @@ int range_cat_fmt(AppendRange *rng, const char *fmt, ...) {
 
   if(rng->start < rng->end) { // Range is valid?
     va_start(args, fmt);
-    rval = vsnprintf(rng->start, range_size(rng), fmt, args);
+    size_t len = range_size(rng);
+    if(len <= 1)  // Force single byte range to zero for formatted length query
+      len = 0;
+    rval = vsnprintf(rng->start, len, fmt, args);
     va_end(args);
 
     if(rval > 0) {
@@ -507,18 +510,22 @@ static inline unsigned base10_digits(uint32_t n) {
 Concatenate an unsigned fixed point integer to a range
 
 Args:
-  rng:      Target string for value
-  value:    Fixed point value to format
-  scale:    Scale factor for value
-  places:   Number of fractional decimal places in output
+  rng:        Target string for value
+  value:      Fixed point value to format
+  scale:      Scale factor for value
+  places:     Number of fractional decimal places in output
+  pad_digits: Pad with spaces: 0 = no padding, < 0 = left justify, > 0 = right justify
 
 Returns:
   Number of bytes written if positive
   Number of bytes needed if negative
 */
-int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned scale, unsigned places) {
+int range_cat_ufixed_padded(AppendRange *rng, unsigned value, unsigned scale, unsigned places,
+                            signed pad_digits) {
   unsigned integer = value / scale;
   unsigned frac = value % scale;
+  int status = 0;
+  int len;
 
   // Give ourselves an extra digit for initial rounding
   unsigned scale_b10_digits = base10_digits(scale) + 1;
@@ -559,18 +566,67 @@ int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned scale, unsigned 
       }
     }
 
+    status = 0;
+    if(pad_digits > 0) { // Handle right justification here
+      // Get length of formatted string
+      len = snprintf(NULL, 0, "%u.%0*u", integer, frac_digits, frac);
+
+      if(pad_digits > len) {
+        pad_digits -= len;
+
+        for(int i = 0; i < pad_digits; i++) {
+          if(range_cat_char(rng, ' ') < 0) {
+            status = -pad_digits;
+            break;
+          }
+          status++;
+        }
+      }
+    }
+
+    if(status >= 0) { // Padding was ok
+      len = range_cat_fmt(rng, "%u.%0*u", integer, frac_digits, frac);
+      if(len >= 0)
+        status += len;
+      else // Won't fit
+        status = -status + len;
+    }
+
   } else {  // places == 0; No fraction part
     // Check for rounding into integer
-    if(frac + scale_b10/2 > scale_b10)  // Round up in 1/10ths place
+    if(frac + scale_b10/2 >= scale_b10)  // Round up in 1/10ths place
       integer++;
 
-    frac = 0;
-    frac_digits = 1;
+    // Handle right justification here
+    int justify = (pad_digits < 0) ? 0 : pad_digits;
+    status = range_cat_fmt(rng, "%*u", justify, integer);
   }
 
-  return range_cat_fmt(rng, "%u.%0*u", integer, frac_digits, frac);
-}
+  if(pad_digits < 0) {
+    if(status >= 0) {  // Left justify by padding on right
+      len = 0;
+      for(int i = pad_digits; i < 0; i++) {
+        if(range_cat_char(rng, ' ') < 0) {
+          len = pad_digits;
+          break;
+        }
 
+        len++;
+      }
+
+      if(len >= 0)
+        status += len;
+      else  // Won't fit
+        status = -status + len;
+
+    } else { // Number didn't fit
+      if(pad_digits < status) // Both are negative
+        status = pad_digits;
+    }
+  }
+
+  return status;
+}
 
 
 /*
@@ -597,7 +653,7 @@ int range_cat_fixed(AppendRange *rng, int value, unsigned scale, unsigned places
   }
 
   if(status >= 0)
-    status += range_cat_ufixed(rng, (unsigned)value, scale, places);
+    status += range_cat_ufixed_padded(rng, (unsigned)value, scale, places, 0);
 
   return status;
 }

@@ -135,6 +135,7 @@ void dh_free(dhash *hash);
 // ******************** Retrieval ********************
 bool dh_lookup(dhash *hash, dhKey key, void *value);
 #define dh_exists(h, k)  dh_lookup(h, k, NULL)
+bool dh_lookup_in_place(dhash *hash, dhKey key, void **value);
 
 void dh_iter_init(dhash *hash, dhIter *it);
 bool dh_iter_next(dhIter *it, dhKey *key, void **value);

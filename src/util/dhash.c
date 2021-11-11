@@ -394,7 +394,7 @@ void dh_free(dhash *hash) {
   for(dhBucketIndex b = 0; b < num_buckets; b++) {
     entry = dh__get_entry_unsafe(hash, b);
 
-    if(!IN_USE(entry))
+    if(!IN_USE(entry) || WAS_DELETED(entry))
       continue;
 
     //uintptr_t value = entry->value_obj[0];
@@ -554,7 +554,7 @@ static inline dhBucketIndex dh__find_bucket(dhash *hash, dhKey key, dhBucketEntr
     if(!IN_USE(entry) || (probes > PROBE_COUNT(entry))) {
       return DH_ERR_KEY_NOT_FOUND; // Key not found, invalid bucket
 
-    } else if(
+    } else if(!WAS_DELETED(entry) &&
 #ifdef DH_USE_MEMOIZED_HASH
               entry->ikey == ikey && 
 #endif
@@ -580,6 +580,9 @@ static inline dhBucketIndex dh__find_bucket(dhash *hash, dhKey key, dhBucketEntr
 /*
 Search for a hash entry
 
+Entry data is copied into the value destination. This is the safest
+lookup method as you are not granted a pointer into the dhash data structure.
+
 Args:
   hash:   Hash to search
   key:    Key to search
@@ -599,6 +602,40 @@ bool dh_lookup(dhash *hash, dhKey key, void *value) {
       memcpy(value, &entry->value_obj, hash->value_size);
     return true;
   }
+
+  return false;
+}
+
+
+/*
+Search for a hash entry
+
+This version of dh_lookup() returns a direct pointer to the bucket value data
+rather than a copy. Never save the pointer returned for the value since it
+will become invalid when the dhash grows or the entry is removed.
+
+Args:
+  hash:   Hash to search
+  key:    Key to search
+  value:  Optional found value matching the key on success
+
+Returns:
+  true if item exists and non-NULL in value
+*/
+bool dh_lookup_in_place(dhash *hash, dhKey key, void **value) {
+
+  dhBucketEntry *entry = NULL;
+  dh__find_bucket(hash, key, &entry);
+  //printf("## GOT BUCKET: %d\n", b);
+
+  if(entry && !WAS_DELETED(entry)) { // Found match
+    if(value)
+      *value = &entry->value_obj;
+    return true;
+  }
+
+  if(value)
+    *value = NULL;
 
   return false;
 }
@@ -1045,7 +1082,7 @@ void dh_dump(dhash *hash, HashVisitor print_item, void *ctx) {
 
     dh__dump_entry(hash, entry, b);
 
-    if(print_item && IN_USE(entry) && !WAS_DELETED(entry))
+    if(print_item && !WAS_DELETED(entry))
       print_item(entry->key, &entry->value_obj, ctx);
   }
 
@@ -1068,7 +1105,7 @@ void dh_foreach(dhash *hash, HashVisitor visitor, void *ctx) {
   dhBucketEntry *entry;
   for(dhBucketIndex b = 0; b < num_buckets; b++) {
     entry = dh__get_entry_unsafe(hash, b);
-    if(!IN_USE(entry)) // FIXME: Check was_deleted???
+    if(!IN_USE(entry) || WAS_DELETED(entry))  // Skip unused and tombstones
       continue;
 
     if(!visitor(entry->key, &entry->value_obj, ctx))
@@ -1095,7 +1132,7 @@ void dh_iter_init(dhash *hash, dhIter *it) {
 
 
 /*
-Start iterator for hash
+Advance iterator to next entry
 
 WARNING: Do not hold onto the value pointer in long term storage. It points directly into the
 hash bucket array and will become invalid when the hash grows.
@@ -1121,7 +1158,7 @@ bool dh_iter_next(dhIter *it, dhKey *key, void **value) {
   // Search for next used bucket
   while(it->bucket < num_buckets) {
     entry = dh__get_entry_unsafe(it->hash, it->bucket);
-    if(IN_USE(entry)) {
+    if(IN_USE(entry) && !WAS_DELETED(entry)) {
       *key = entry->key;
       *value = &entry->value_obj;
       return true;
