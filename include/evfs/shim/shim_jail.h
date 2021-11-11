@@ -24,6 +24,14 @@ Embedded Virtual Filesystem
 #ifndef SHIM_JAIL_H
 #define SHIM_JAIL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int evfs_register_jail(const char *vfs_name, const char *old_vfs_name, const char *jail_root, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SHIM_JAIL_H

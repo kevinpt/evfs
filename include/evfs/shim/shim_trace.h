@@ -18,7 +18,15 @@ Embedded Virtual Filesystem
 #ifndef SHIM_TRACE_H
 #define SHIM_TRACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int evfs_register_trace(const char *vfs_name, const char *old_vfs_name,
     int (*report)(const char *buf, void *ctx), void *ctx, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SHIM_TRACE_H

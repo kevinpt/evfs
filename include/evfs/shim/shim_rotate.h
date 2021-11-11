@@ -17,7 +17,14 @@ typedef struct RotateConfig_s {
   bool          repair_corrupt; // Repair invalid containers by removing chunks
 } RotateConfig;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int evfs_register_rotate(const char *vfs_name, const char *old_vfs_name, RotateConfig *cfg, bool default_vfs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // SHIM_ROTATE_H
