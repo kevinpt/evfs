@@ -462,6 +462,10 @@ static int romfs__set_cur_dir(Evfs *vfs, const char *path) {
 
     evfs_vfs_path_join(vfs, &head, &tail, &joined);
 
+    // We must normalize now because the fast index can't handle denormal paths
+    range_init(&joined, joined_path, joined_size);
+    evfs_vfs_path_normalize(vfs, joined_path, &joined);
+
     // Confirm the path exists
     if(!evfs__vfs_existing_dir(vfs, joined_path)) {
       evfs_free(joined_path);
@@ -469,7 +473,8 @@ static int romfs__set_cur_dir(Evfs *vfs, const char *path) {
     }
 
     // Overwrite old cur_dir
-    evfs_vfs_path_normalize(vfs, joined_path, &head);
+    range_init(&head, fs_data->cur_dir, EVFS_MAX_PATH);
+    range_cat_str((AppendRange *)&head, joined_path);
 
     evfs_free(joined_path);
   }

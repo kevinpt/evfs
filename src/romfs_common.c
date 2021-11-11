@@ -272,12 +272,18 @@ static int romfs__get_next_file(Romfs *fs, RomfsFileHead *cur_file, evfs_off_t *
 
 static int romfs__get_dir(Romfs *fs, const char *path, RomfsFileHead *hdr,
                                 evfs_off_t *cur_file_offset, evfs_off_t *dir_pos) {
-  int status = fs->lookup_abs_path(fs, path, hdr);
+
+  StringRange element;
+  int status = romfs__scan_path(path, &element); // Get first element in path
+  bool is_root = status != EVFS_OK; // Assume this is the root path if scan failed
+
+  status = fs->lookup_abs_path(fs, path, hdr);
+
 
   if(dir_pos)
-    *dir_pos = FILE_OFFSET(hdr); // Offset to the dir entry
+    *dir_pos = is_root ? (uint32_t)fs->root_dir : FILE_OFFSET(hdr); // Offset to the dir entry
 
-
+  //DPRINT("romfs__get_dir('%s') --> %d %02X  @ %u", path, status, FILE_MODE(hdr), FILE_OFFSET(hdr));
   if(status == EVFS_OK && FILE_TYPE(hdr) != FILE_TYPE_DIRECTORY) {
     status = EVFS_ERR_NO_PATH;
   }
