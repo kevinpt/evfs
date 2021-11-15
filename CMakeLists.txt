@@ -49,7 +49,7 @@ set(EVFS_LIB_SOURCE
 list(TRANSFORM EVFS_LIB_SOURCE PREPEND "${EVFS_PREFIX}/")
 
 
-set(LFS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/vendored/littlefs")
+set(LFS_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/libraries/littlefs")
 
 set(LITTLEFS_SOURCE
   ${EVFS_PREFIX}/littlefs_fs.c
@@ -58,8 +58,12 @@ set(LITTLEFS_SOURCE
   ${LFS_PREFIX}/lfs_util.c
 )
 
+set_source_files_properties(${LITTLEFS_SOURCE}
+  PROPERTIES
+    COMPILE_FLAGS "-Wno-unused-function"
+)
 
-set(FF_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/vendored/fatfs")
+set(FF_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fatfs")
 
 set(FATFS_SOURCE
   ${EVFS_PREFIX}/fatfs_fs.c
@@ -125,8 +129,8 @@ add_pc_executable(test_image
 target_include_directories(test_image
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
-  ${CMAKE_CURRENT_SOURCE_DIR}/vendored/littlefs
-  ${CMAKE_CURRENT_SOURCE_DIR}/vendored/fatfs/source
+  ${CMAKE_CURRENT_SOURCE_DIR}/libraries/littlefs
+  ${CMAKE_CURRENT_SOURCE_DIR}/libraries/fatfs/source
 )
 
 target_link_libraries(test_image
