@@ -1175,7 +1175,7 @@ Args:
 Returns:
   Number of bytes read on success or negative error code on failure
 */
-size_t evfs_file_read(EvfsFile *fh, void *buf, size_t size) {
+ptrdiff_t evfs_file_read(EvfsFile *fh, void *buf, size_t size) {
   if(PTR_CHECK(fh) || PTR_CHECK(buf)) return EVFS_ERR_BAD_ARG;
   return fh->methods->m_read(fh, buf, size);
 }
@@ -1191,7 +1191,7 @@ Args:
 Returns:
   Number of bytes written on success or negative error code on failure
 */
-size_t evfs_file_write(EvfsFile *fh, const void *buf, size_t size) {
+ptrdiff_t evfs_file_write(EvfsFile *fh, const void *buf, size_t size) {
   if(PTR_CHECK(fh) || PTR_CHECK(buf)) return EVFS_ERR_BAD_ARG;
   return fh->methods->m_write(fh, buf, size);
 }

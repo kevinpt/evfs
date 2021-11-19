@@ -423,8 +423,8 @@ int evfs_vfs_scan_path(Evfs *vfs, const char *path, StringRange *element);
 // ******************** File access methods ********************
 int evfs_file_ctrl(EvfsFile *fh, int cmd, void *arg);
 int evfs_file_close(EvfsFile *fh);
-size_t evfs_file_read(EvfsFile *fh, void *buf, size_t size);
-size_t evfs_file_write(EvfsFile *fh, const void *buf, size_t size);
+ptrdiff_t evfs_file_read(EvfsFile *fh, void *buf, size_t size);
+ptrdiff_t evfs_file_write(EvfsFile *fh, const void *buf, size_t size);
 int evfs_file_truncate(EvfsFile *fh, evfs_off_t size);
 int evfs_file_sync(EvfsFile *fh);
 evfs_off_t evfs_file_size(EvfsFile *fh);
