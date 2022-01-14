@@ -76,8 +76,7 @@ int main(int argc, char *argv[]) {
 
   RotateConfig cfg = {
     .chunk_size = 40,
-    .max_chunks = 20,
-    .repair_corrupt = true
+    .max_chunks = 4
   };
 
 

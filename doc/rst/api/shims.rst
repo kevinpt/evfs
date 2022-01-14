@@ -114,13 +114,15 @@ settings you can send a new :c:struct:`RotateConfig` struct to the shim using th
 :c:macro:`EVFS_CMD_SET_ROTATE_CFG` as the operation in a call to :c:func:`evfs_vfs_ctrl_ex`.
 
 Rotation will leave portions of data spanning the chunk boundary at the new
-start of the file. For text files, the first line will be missing an initial
+start of the file. For text files the first line will be missing an initial
 portion. You can trim off this first fragmentary line by scanning for the
 newline. With binary data you have to be prepared to lose a portion of a record
 unless you always write a fixed record size that is an integral factor of the
-chunk size. Otherwise you will need to have some form or synchronizing
-information stored periodically so you can skip past the truncated data
-remaining at the start of the file.
+chunk size. Another approach is to accumulate data for a chunk until it's
+nearly full with padding added to ensure no data spans a chunk boundary.
+Otherwise you will need to have some form or synchronizing information stored
+periodically so you can skip past the truncated data remaining at the start of
+the file.
 
 
 .. c:struct:: RotateConfig
@@ -187,15 +189,10 @@ depending on your system's needs and capabilities.
 
 The chunking algorithm is designed to work on systems that don't record
 timestamps. When a container is opened the chunks are scanned to find the
-start and end of the sequence. This requires that a single gap is present
-in the chunk number sequence. If there are multiple gaps in the sequence,
-these two end points can't be unambiguously identified and the container is
-unusable. There is an optional repair procedure that will drop enough chunks
-to restore a valid sequence. This should be unlikely to happen if you only
-write to the container in append mode. Set :c:var:`repair_corrupt` to ``true``
-in the configuration struct to activate repairs when opening a container.
-If you perform random access writes in the middle of the file there is a risk of
-a chunk disappearing or becoming zero length if a system fault happens.
+start and end of the sequence using the generation flag encoded into the file
+names. If you perform random access writes in the middle of the file there is
+a risk of a chunk disappearing or becoming zero length if a system fault
+happens.
 
 The rotation process only involves deleting the oldest chunk at the start of
 the file. This minimizes the amount of filesystem activity on flash based

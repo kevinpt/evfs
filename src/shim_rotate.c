@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT
-Copyright 2020 Kevin Thibedeau
+Copyright 2020, 2022 Kevin Thibedeau
 (kevin 'period' thibedeau 'at' gmail 'punto' com)
 
 See LICENSE in the EVFS project root for details
@@ -37,14 +37,10 @@ mode writes to add data to the end of the file.
 
 The chunking algorithm is designed to work on systems that don't record
 timestamps. When a container is opened the chunks are scanned to find the
-start and end of the sequence. This requires that single gap is present
-in the chunk number sequence. If there are multiple gaps in the sequence,
-these two end points can't be unambiguously identified and the container is
-unusable. There is an optional repair procedure that will drop enough chunks
-to restore a valid sequence. This should be unlikely to happen if you only
-write to the container in append mode. If you perform random access writes in
-the middle of the file there is a risk of a chunk disappearing or becoming zero
-length if a system fault happens.
+start and end of the sequence using the gen flag encoded into the file
+names. If you perform random access writes in the middle of the file there is
+a risk of a chunk disappearing or becoming zero length if a system fault
+happens.
 
 The rotation process only involves deleting the oldest chunk at the start of
 the file. This minimizes the amount of filesystem activity on flash based
@@ -55,9 +51,11 @@ start of the file. For text files the first line will be missing an initial
 portion. You can trim off this first fragmentary line by scanning for the
 newline. With binary data you have to be prepared to lose a portion of a record
 unless you always write a fixed record size that is an integral factor of the
-chunk size. Otherwise you will need to have some form or synchronizing
-information stored periodically so you can skip past the truncated data
-remaining at the start of the file.
+chunk size. Another approach is to accumulate data for a chunk until it's
+nearly full with padding added to ensure no data spans a chunk boundary.
+Otherwise you will need to have some form or synchronizing information stored
+periodically so you can skip past the truncated data remaining at the start of
+the file.
 
 The initial container configuration settings are passed to
 evfs_register_rotate() when the shim is installed. If you need to change the
@@ -117,7 +115,7 @@ EVFS_CMD_SET_ROTATE_CFG as the operation evfs_vfs_ctrl().
 // ******************** Structs for container files ********************
 
 PACKED_BEGIN
-struct MultipartHeader_s {
+struct MultipartHeader {
   uint32_t  magic;
   uint8_t   type;
   uint8_t   version;
@@ -125,17 +123,17 @@ struct MultipartHeader_s {
 };
 PACKED_END
 
-typedef struct MultipartHeader_s MultipartHeader;
+typedef struct MultipartHeader MultipartHeader;
 
 // Config data written to geom.dat
 PACKED_BEGIN
-struct RotateGeometry_s {
+struct RotateGeometry {
   uint32_t      chunk_size;
   uint32_t      max_chunks;
 };
 PACKED_END
 
-typedef struct RotateGeometry_s RotateGeometry;
+typedef struct RotateGeometry RotateGeometry;
 
 
 
@@ -156,21 +154,25 @@ typedef struct RotateGeometry_s RotateGeometry;
 #endif
 
 
-typedef struct SharedBuffer_s {
+typedef struct SharedBuffer {
   char        tmp_path[EVFS_MAX_PATH]; // Shared buffer for building temp paths
 #ifdef USE_ROT_LOCK
   EvfsLock     buf_lock; // Serialize access to shared tmp_path buffer
 #endif
 } SharedBuffer;
 
+typedef struct {
+  int chunk;
+  int gen; // Generation flag: 0 or 1
+} ChunkId;
 
-typedef struct MultipartState_s {
+typedef struct MultipartState {
   const char *container_path;
   int         flags;
   evfs_off_t  chunk_size;
   evfs_off_t  total_size;
   evfs_off_t  file_pos;     // Logical position for reads and writes in non-append mode
-  int         active_chunk;
+  ChunkId     active_chunk;
   EvfsFile   *active_chunk_fh;
 
 #ifdef EVFS_USE_ROTATE_SHARED_BUFFER
@@ -179,23 +181,23 @@ typedef struct MultipartState_s {
 } MultipartState;
 
 
-typedef struct ChunkPos_s {
+typedef struct ChunkPos {
   evfs_off_t offset;
-  int        chunk_num;
+  ChunkId    chunk_num;
 } ChunkPos;
 
 
 
-typedef struct RotateState_s {
+typedef struct RotateState {
   MultipartState  base;
   RotateConfig    cfg;  // Configuration read from the geometry file
 
-  int start_chunk;  // First chunk in the logical file. It always follows a gap in the chunk sequence
-  int end_chunk;    // Last chunk in logical file
+  ChunkId start_chunk;  // First chunk in the logical file. It always follows a gap in the chunk sequence
+  ChunkId end_chunk;    // Last chunk in logical file
 } RotateState;
 
 
-typedef struct RotateData_s {
+typedef struct RotateData {
   Evfs       *base_vfs;
   const char *vfs_name;
   Evfs       *shim_vfs;
@@ -206,7 +208,7 @@ typedef struct RotateData_s {
 #endif
 } RotateData;
 
-typedef struct RotateFile_s {
+typedef struct RotateFile {
   EvfsFile    base;
   RotateData *shim_data;
   EvfsFile   *base_file;
@@ -214,7 +216,7 @@ typedef struct RotateFile_s {
   RotateState *rot_state;
 } RotateFile;
 
-typedef struct RotateDir_s {
+typedef struct RotateDir {
   EvfsDir     base;
   RotateData *shim_data;
   EvfsDir    *base_dir;
@@ -226,10 +228,10 @@ typedef struct RotateDir_s {
 
 
 static evfs_off_t cur_write_pos(MultipartState *ms) {
-  if(ms->flags & EVFS_APPEND)
-    return ms->total_size;
+  evfs_off_t wpos = (ms->flags & EVFS_APPEND) ? ms->total_size : ms->file_pos;
+  //DPRINT("ROT write pos %d  append:%c  (%p)", wpos, (ms->flags & EVFS_APPEND) ? 'T' :'f', ms);
 
-  return ms->file_pos;
+  return wpos;
 }
 
 
@@ -323,14 +325,16 @@ static bool is_rotate_file(Evfs *base_vfs, const char *path) {
 }
 
 
-static int build_chunk_path(Evfs *base_vfs, MultipartState *ms, int chunk_num, StringRange *chunk_path) {
-  char chunk_file[18];
-  snprintf(chunk_file, COUNT_OF(chunk_file), "c%05d.cnk", chunk_num);
+static int build_chunk_path(Evfs *base_vfs, MultipartState *ms, ChunkId chunk_num,
+                            StringRange *chunk_path) {
+  char chunk_file[19];
+  snprintf(chunk_file, COUNT_OF(chunk_file), "c%05d_%c.cnk", chunk_num.chunk,
+          chunk_num.gen ? '1' : '0');
   return evfs_vfs_path_join_str(base_vfs, ms->container_path, chunk_file, chunk_path);
 }
 
 
-static bool chunk_exists(Evfs *base_vfs, MultipartState *ms, int chunk_num, evfs_off_t *chunk_size) {
+static bool chunk_exists(Evfs *base_vfs, MultipartState *ms, ChunkId chunk_num, evfs_off_t *chunk_size) {
 
 #ifdef EVFS_USE_ROTATE_SHARED_BUFFER
   LOCK(ms->buf);
@@ -360,7 +364,7 @@ static ChunkPos get_chunk_pos(RotateState *rs, evfs_off_t logical_off) {
   evfs_off_t offset = logical_off % rs->cfg.chunk_size;
 
   // Raw chunk number always starts from 0
-  // Valid range is 0 to max_chunks-1 since the gap isn't accounted for yet
+  // Valid range is 0 to max_chunks-1
   if(raw_chunk >= rs->cfg.max_chunks) { // Too large for logical file
     raw_chunk = rs->cfg.max_chunks; // Set to beyond last chunk
     offset = 0;
@@ -368,15 +372,17 @@ static ChunkPos get_chunk_pos(RotateState *rs, evfs_off_t logical_off) {
 
   ChunkPos pos;
   // Offset by start of logical file and wrap to upper bound
-  pos.chunk_num = (raw_chunk + rs->start_chunk) % (rs->cfg.max_chunks+1);
+  pos.chunk_num.chunk = (raw_chunk + rs->start_chunk.chunk) % rs->cfg.max_chunks;
+  pos.chunk_num.gen = (pos.chunk_num.chunk < rs->start_chunk.chunk) ?
+                              1 - rs->start_chunk.gen : rs->start_chunk.gen;
   pos.offset = offset;
   return pos;
 }
 
 
 
-static int evict_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num, evfs_off_t *chunk_size) {
-  //DPRINT("EVICT: %d", chunk_num);
+static int evict_chunk(Evfs *base_vfs, MultipartState *ms, ChunkId chunk_num, evfs_off_t *chunk_size) {
+  //DPRINT("EVICT: %d_%d", chunk_num.chunk, chunk_num.gen);
 
 #ifdef EVFS_USE_ROTATE_SHARED_BUFFER
   LOCK(ms->buf);
@@ -406,30 +412,21 @@ static int evict_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num, evfs_o
 }
 
 
-// Method
-static inline int next_chunk(RotateState *rs) {
-  int next;
+static inline void incr_chunk(RotateState *rs, ChunkId *id) {
+  id->chunk++;
+  if(id->chunk >= (int)rs->cfg.max_chunks) {
+    id->chunk = 0;
+    id->gen = 1 - id->gen;
+  }
+}
 
+
+static inline ChunkId next_chunk(RotateState *rs) {
   // Next chunk always follows the end chunk
-  next = rs->end_chunk+1;
-  if(next > (int)rs->cfg.max_chunks)
-    next = 0;
-
+  ChunkId next = rs->end_chunk;
+  incr_chunk(rs, &next);
   return next;
 }
-
-
-static inline int gap_chunk(RotateState *rs) {
-  int gap;
-
-  // Gap always preceeds the start chunk
-  gap = rs->start_chunk - 1;
-  if(gap < 0)
-    gap = rs->cfg.max_chunks;
-
-  return gap;
-}
-
 
 
 static inline void deactivate_chunk(MultipartState *ms) {
@@ -437,15 +434,15 @@ static inline void deactivate_chunk(MultipartState *ms) {
   if(ms->active_chunk_fh) {
     evfs_file_close(ms->active_chunk_fh);
     ms->active_chunk_fh = NULL;
-    ms->active_chunk = -1;
+    ms->active_chunk.chunk = -1;
   }
 }
 
 
-static int activate_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num) {
-  //DPRINT("Activate chunk: %d", chunk_num);
+static int activate_chunk(Evfs *base_vfs, MultipartState *ms, ChunkId chunk_num) {
+  //DPRINT("ROT Activate chunk: %d_%d", chunk_num.chunk, chunk_num.gen);
 
-  if(ms->active_chunk == chunk_num) // Already opened chunk
+  if(ms->active_chunk.chunk == chunk_num.chunk) // Already opened chunk
     return EVFS_OK;
 
   // Shutdown current active chunk
@@ -480,31 +477,35 @@ static int activate_chunk(Evfs *base_vfs, MultipartState *ms, int chunk_num) {
 
 // Method
 static int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
-  int next = next_chunk(rs);
-  int gap = gap_chunk(rs);
+  bool is_empty = rs->start_chunk.chunk == rs->end_chunk.chunk &&
+                  !chunk_exists(base_vfs, &rs->base, rs->end_chunk, NULL);
+  ChunkId next = rs->end_chunk;
 
-  //DPRINT("Append new chunk: %d", next);
+  //DPRINT("ROT append  empty:%c", is_empty ? 'T':'f');
 
-  if(next > MULTIPART_MAX_CHUNK)
-    return EVFS_ERR_TOO_LONG;
+  if(!is_empty) {
+    next = next_chunk(rs);
 
-  // Remove the old start chunk to maintain gap
-  if(next == gap) {
-    evict_chunk(base_vfs, &rs->base, rs->start_chunk, NULL);
+    if(next.chunk >= MULTIPART_MAX_CHUNK)
+      return EVFS_ERR_TOO_LONG;
 
-    rs->start_chunk++;
-    if(rs->start_chunk > (int)rs->cfg.max_chunks)
-      rs->start_chunk = 0;
+    // Remove the old start chunk on wrap around
+    if(next.chunk == rs->start_chunk.chunk) {
+      evict_chunk(base_vfs, &rs->base, rs->start_chunk, NULL);
 
-    // Adjust read/write pos to reflect trimmed file
-    if(rs->base.file_pos > (evfs_off_t)rs->cfg.chunk_size)
-      rs->base.file_pos -= rs->cfg.chunk_size;
-    else
-      rs->base.file_pos = 0;
+      incr_chunk(rs, &rs->start_chunk);
 
+      // Adjust read/write pos to reflect trimmed file
+      if(rs->base.file_pos > (evfs_off_t)rs->cfg.chunk_size)
+        rs->base.file_pos -= rs->cfg.chunk_size;
+      else
+        rs->base.file_pos = 0;
+    }
+
+    rs->end_chunk = next;
   }
 
-  rs->end_chunk = next;
+  //DPRINT("ROT: Append new chunk: %d_%d", rs->end_chunk.chunk, rs->end_chunk.gen);
 
 #ifdef EVFS_USE_ROTATE_SHARED_BUFFER
   LOCK(rs->base.buf);
@@ -515,6 +516,8 @@ static int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
   char joined[EVFS_MAX_PATH];
   StringRange joined_r = RANGE_FROM_ARRAY(joined);
 #endif
+
+  // Add new chunk file
   build_chunk_path(base_vfs, &rs->base, next, &joined_r);
 
   // Open file handle is returned through fh
@@ -526,164 +529,98 @@ static int append_new_chunk(Evfs *base_vfs, RotateState *rs, EvfsFile **fh) {
 }
 
 
+static ChunkId parse_chunk_name(const char *name) {
+  ChunkId id = {-1,0};
 
-static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs, bool repair_corrupt) {
+  if(strlen(name) == 12) {
+    id.chunk = strtol(&name[1], NULL, 10);
+    id.gen = name[7] - '0';
+
+    DPRINT("ROT name: %s --> %d_%d", name, id.chunk, id.gen);
+  }
+
+  return id;
+}
+
+
+static int discover_chunk_sequence(Evfs *base_vfs, RotateState *rs) {
   // Scan directory for chunks
-  int prev_chunk = -1;
-
-  evfs_off_t size = 0;
   evfs_off_t chunk_size;
-
   int status = EVFS_OK;
 
   // Loop over all chunks in the container sequence.
-  // This lets us identify where the sequence gap is and if there are
-  // any anomalies from the past.
+  // This lets us identify where the gen bit flips
 
   struct span {
     int start;
     int end;
   };
 
-  // A valid chunk sequence has only 1 or 2 spans. Extra is sentinel
-  struct span spans[3] = {0};
-  int cur_span = -1;
+  struct span gen_span[2] = {
+    {MULTIPART_MAX_CHUNK, -1},
+    {MULTIPART_MAX_CHUNK, -1}
+  };
 
-  for(int i = 0; i < 3; i++) {
-    spans[i].start = -1;
-  }
+  rs->base.total_size = 0;
 
-  for(int i = 0; i <= (int)rs->cfg.max_chunks; i++) {
-    bool exists = chunk_exists(base_vfs, &rs->base, i, &chunk_size);
+  // Scan chunks
+  EvfsDir *dh;
+  if(evfs_vfs_open_dir(base_vfs, rs->base.container_path, &dh) == EVFS_OK) {
+    EvfsInfo info;
+    while(evfs_dir_find(dh, "c*.cnk", &info) == EVFS_OK) {
+      ChunkId id = parse_chunk_name(info.name);
+      bool exists = chunk_exists(base_vfs, &rs->base, id, &chunk_size);
 
-    // It's possible a 0-length chunk was leftover from a previous
-    // power failure. We'll clean it up now. This should just leave
-    // us with a larger gap unless more significant errors have happened.
-    if(exists && chunk_size == 0) {
-      evict_chunk(base_vfs, &rs->base, i, NULL);
-      exists = false;
-    }
-
-    if(exists) {
-      size += chunk_size;
-
-      if(cur_span >= 0 && cur_span < 2) {
-        spans[cur_span].end++;
+      // It's possible a 0-length chunk was leftover from a previous
+      // power failure. We'll clean it up now. This should just leave
+      // us with a gap between generations unless more significant
+      // errors have happened.
+      if(exists && chunk_size == 0) {
+        //DPRINT("ROT evict zero length chunk");
+        evict_chunk(base_vfs, &rs->base, id, NULL);
+        exists = false;
       }
 
+      if(exists) {
+        gen_span[id.gen].start  = MIN(gen_span[id.gen].start, id.chunk);
+        gen_span[id.gen].end    = MAX(gen_span[id.gen].end, id.chunk);
 
-      if(cur_span < 0) { // Start first span
-        cur_span = 0;
-        spans[cur_span].start = i;
-        spans[cur_span].end = i;
+        rs->base.total_size += chunk_size;
+        //DPRINT("ROT found chunk %d_%d  size:%d (%p)", id.chunk, id.gen, rs->base.total_size,
+        //        &rs->base);
       }
 
-      if(prev_chunk < i-1) { // Start of later span
-        spans[cur_span].start = i;
-        spans[cur_span].end = i;
-      }
-
-      prev_chunk = i;
-
-    } else { // No chunk
-      if(prev_chunk >= 0) { // Past any initial gap
-        // Advance to next span on gap boundary
-        if(i == prev_chunk+1 && cur_span < 2)
-          cur_span++;
-      }
     }
-
+    evfs_dir_close(dh);
   }
 
-  int found_spans = 0;
-  if(spans[0].start != -1) found_spans++;
-  if(spans[1].start != -1) found_spans++;
-  if(spans[2].start != -1) found_spans++;
-
-
-/*  DPRINT("SPAN 0: %d - %d", spans[0].start, spans[0].end);
-  DPRINT("SPAN 1: %d - %d", spans[1].start, spans[1].end);
-  DPRINT("SPAN 2: %d - %d", spans[2].start, spans[2].end);
-  DPRINT("found: %d", found_spans);*/
-
-
-  // Validate spans found
-
-  if(found_spans > 2) { // More than two spans found: Corrupt chunk sequence
-    // Wipe out garbage sentinel span
-    found_spans = 2;
-    status = EVFS_ERR_CORRUPTION;
-  }
-
-  if(found_spans == 2) {
-    rs->start_chunk = spans[1].start;
-    rs->end_chunk   = spans[0].end;
-
-    // These spans should wrap on the max_chunks boundary
-    if(spans[0].start != 0 || spans[1].end != (int)rs->cfg.max_chunks) { // Multiple gaps in chunk sequence
-      status = EVFS_ERR_CORRUPTION;
-      if(repair_corrupt) { // Drop shortest span
-        if((spans[1].end - spans[1].start) > (spans[0].end - spans[0].start)) { // Second span is longer
-          spans[0] = spans[1];
-        }
-        found_spans = 1;
-        status = EVFS_ERR_REPAIRED;
+  if(gen_span[0].end >= 0 || gen_span[1].end >= 0) { // Found chunk files
+    if(gen_span[0].end >= 0 && gen_span[1].end >= 0) { // Both generations present
+      if(gen_span[0].start < gen_span[1].start) { // Gen 0 is newer
+        rs->start_chunk = (ChunkId){gen_span[1].start, 1};
+        rs->end_chunk   = (ChunkId){gen_span[0].end, 0};
+      } else {  // Gen 1 is newer
+        rs->start_chunk = (ChunkId){gen_span[0].start, 0};
+        rs->end_chunk   = (ChunkId){gen_span[1].end, 1};
+      }
+    } else { // One generation
+      if(gen_span[0].end >= 0) { // Gen 0
+        rs->start_chunk = (ChunkId){gen_span[0].start, 0};
+        rs->end_chunk   = (ChunkId){gen_span[0].end, 0};
+      } else {  // Gen 1
+        rs->start_chunk = (ChunkId){gen_span[1].start, 1};
+        rs->end_chunk   = (ChunkId){gen_span[1].end, 1};
       }
     }
+
+    //DPRINT("ROT init: start: %d_%d  end: %d_%d  size: %d", rs->start_chunk.chunk, rs->start_chunk.gen,
+    //      rs->end_chunk.chunk, rs->end_chunk.gen, rs->base.total_size);
+
+  } else {  // No chunks
+    //DPRINT("ROT init: no chunks");
+    rs->start_chunk = (ChunkId){0, 0};
+    rs->end_chunk   = (ChunkId){0, 0};
   }
-
-  if(found_spans == 1) {
-    rs->start_chunk = spans[0].start;
-    rs->end_chunk   = spans[0].end;
-  } 
-
-  if(found_spans == 0) { // No spans found: new container with no chunks
-    rs->start_chunk = 1;
-    rs->end_chunk   = 0;  // First call to append_new_chunk() sets this to 1
-  }
-
-  int cur_chunk;
-  if(status == EVFS_ERR_REPAIRED) { // We have extra chunks to remove
-    // Delete all chunks in gap between end and start
-    cur_chunk = next_chunk(rs);
-    while(cur_chunk != rs->start_chunk) {
-      evict_chunk(base_vfs, &rs->base, cur_chunk, NULL);
-      cur_chunk++;
-      if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
-    }
-  }
-
-
-  // End should not be in the gap
-  if(rs->end_chunk == gap_chunk(rs) && cur_span >= 0) { // Missing gap in chunk sequence
-    status = EVFS_ERR_CORRUPTION;
-    if(repair_corrupt) {
-      rs->start_chunk = 1;
-      rs->end_chunk = rs->cfg.max_chunks;
-      evict_chunk(base_vfs, &rs->base, 0, NULL); // Force a new gap in chunk 0
-      status = EVFS_ERR_REPAIRED;
-    }
-  }
-
-
-  if(status != EVFS_OK) {
-    // Corruption happened: Recompute the total size after repairs
-
-    size = 0;
-
-    cur_chunk = rs->start_chunk;
-    int next = next_chunk(rs); // One past end_chunk
-    while(cur_chunk != next) {
-      if(chunk_exists(base_vfs, &rs->base, cur_chunk, &chunk_size)) {
-        size += chunk_size;
-      }
-
-      cur_chunk++;
-      if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
-    }
-  }
-
-  rs->base.total_size = size;
 
   return status;
 }
@@ -755,7 +692,7 @@ static int open_rotate_container(Evfs *vfs, const char *path, RotateFile *fh, in
 
   // Successful read
 
-  //DPRINT("Chunk size: %d  Max chunks: %d\n", rs->cfg.chunk_size, rs->cfg.max_chunks);
+  //DPRINT("ROT Chunk size: %d  Max chunks: %d\n", rs->cfg.chunk_size, rs->cfg.max_chunks);
 
   // Save path to container
   rs->base.container_path = (char *)NEXT_OBJ(rs);
@@ -764,18 +701,15 @@ static int open_rotate_container(Evfs *vfs, const char *path, RotateFile *fh, in
   rs->base.flags = flags;
   rs->base.chunk_size = geom.chunk_size;
   rs->base.file_pos = 0;
-  rs->base.active_chunk = -1;
+  rs->base.active_chunk.chunk = -1;
+  rs->base.active_chunk.gen = 0;
   rs->base.active_chunk_fh = NULL;
 
 #ifdef EVFS_USE_ROTATE_SHARED_BUFFER
   rs->base.buf = &shim_data->buf;
 #endif
 
-  status = discover_chunk_sequence(base_vfs, rs, rs->cfg.repair_corrupt);
-
-  if(status == EVFS_ERR_REPAIRED && rs->cfg.repair_corrupt)
-    status = EVFS_OK;
-
+  status = discover_chunk_sequence(base_vfs, rs);
 
   fh->rot_state = rs;
 
@@ -804,7 +738,7 @@ static int set_rotate_config(Evfs *vfs, RotateConfig *cfg) {
 }
 
 
-
+// Trim chunks from start of file
 static int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
   RotateState *rs = fil->rot_state;
   RotateData *shim_data = fil->shim_data;
@@ -817,47 +751,51 @@ static int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
   if(trim_chunks == 0) // No change
     return 0;
 
-  int trim_start, trim_end;
+  ChunkId trim_start, trim_end;
 
   // Determine range of chunks to delete
   trim_start = rs->start_chunk;
+
   if(trim_chunks * (evfs_off_t)rs->cfg.chunk_size >= rs->base.total_size) { // Remove all chunks
     trim_end = rs->end_chunk;
 
   } else { // Partial trim
-    trim_end = trim_start + trim_chunks - 1;
-    if(trim_end > (int)rs->cfg.max_chunks)
-      trim_end = trim_end - rs->cfg.max_chunks - 1;
+    trim_end = trim_start;
+    trim_end.chunk += trim_chunks - 1;
+    if(trim_end.chunk >= (int)rs->cfg.max_chunks) {
+      trim_end.chunk -= rs->cfg.max_chunks;
+      trim_end.gen = 1 - trim_end.gen;
+    }
   }
 
   evfs_off_t chunk_size;
   evfs_off_t trimmed_size = 0;
-  int cur_chunk = trim_start;
+  ChunkId cur_chunk = trim_start;
 
   // Delete chunks
-  trim_end++; // End is now what will be new start
-  if(trim_end > (int)rs->cfg.max_chunks) trim_end = 0;
-
-  while(cur_chunk != trim_end) {
+  while(1) {
     status = evict_chunk(base_vfs, &rs->base, cur_chunk, &chunk_size);
     if(status != EVFS_OK)
       break;
 
     trimmed_size += chunk_size;
-    cur_chunk++;
-    if(cur_chunk > (int)rs->cfg.max_chunks) cur_chunk = 0;
+
+    if(cur_chunk.chunk == trim_end.chunk)
+      break;
+
+    incr_chunk(rs, &cur_chunk);
   }
 
   // Fix up state
-  if(trim_end == trim_start) { // All chunks removed
+  if(cur_chunk.chunk == rs->end_chunk.chunk) { // All chunks removed
     rs->base.total_size = 0; // Just to be sure this is correct
-    rs->start_chunk = 1;
-    rs->end_chunk = 0;
-
+    rs->start_chunk = (ChunkId){0,0};
+    rs->end_chunk = (ChunkId){0,0};
     rs->base.file_pos = 0;
 
   } else { // Partial trim
-    rs->start_chunk = trim_end;
+    incr_chunk(rs, &cur_chunk);
+    rs->start_chunk = cur_chunk;
 
     if(rs->base.file_pos > trimmed_size)
       rs->base.file_pos -= trimmed_size;
@@ -871,6 +809,7 @@ static int trim_start_chunks(RotateFile *fil, evfs_off_t trim_bytes) {
 
   return status;
 }
+
 
 // ******************** File access methods ********************
 
@@ -917,7 +856,7 @@ static int rotate__file_close(EvfsFile *fh) {
     if(rs->base.active_chunk_fh) {
       evfs_file_close(rs->base.active_chunk_fh);
       rs->base.active_chunk_fh = NULL;
-      rs->base.active_chunk = -1;
+      rs->base.active_chunk.chunk = -1;
     }
 
     evfs_free(rs);
@@ -961,7 +900,7 @@ static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
       if(!chunk_exists(base_vfs, &rs->base, rpos.chunk_num, &chunk_size))
         break;
 
-      if(rpos.chunk_num != rs->base.active_chunk) {
+      if(rpos.chunk_num.chunk != rs->base.active_chunk.chunk) {
         status = activate_chunk(base_vfs, &rs->base, rpos.chunk_num);
         if(status != EVFS_OK) return status;
       }
@@ -991,7 +930,6 @@ static ptrdiff_t rotate__file_read(EvfsFile *fh, void *buf, size_t size) {
 
   }
 
-
   return read;
 }
 
@@ -1012,6 +950,7 @@ static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) 
     EvfsFile *new_chunk;
     int status = EVFS_OK;
 
+    //DPRINT("ROT: write  %d", size);
 
     // We may have more than one chunk's worth of data to write
     while(size > 0) {
@@ -1029,7 +968,7 @@ static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) 
         rs->base.active_chunk_fh = new_chunk;
       }
 
-      if(wpos.chunk_num != rs->base.active_chunk) {
+      if(wpos.chunk_num.chunk != rs->base.active_chunk.chunk) {
         status = activate_chunk(base_vfs, &rs->base, wpos.chunk_num);
         if(status != EVFS_OK) return status;
       }
@@ -1052,7 +991,7 @@ static ptrdiff_t rotate__file_write(EvfsFile *fh, const void *buf, size_t size) 
         rs->base.total_size += wrote_chunk;
       }
 
-      // If we have more chunks to write we need to cycle the gap forward
+      // Check if we have more chunks to write
       if(size > 0) {
         status = append_new_chunk(base_vfs, rs, &new_chunk);
         if(status != EVFS_OK) return status;
@@ -1089,14 +1028,13 @@ static int rotate__file_truncate(EvfsFile *fh, evfs_off_t size) {
     // Delete all chunks after truncation point
 
     // The last chunk may be partially filled so it needs special handling
-    //int end = end_chunk(rs);
     evfs_off_t delete_bytes = rs->base.total_size - size;
 
     status = activate_chunk(base_vfs, &rs->base, rs->end_chunk);
     if(status != EVFS_OK) return EVFS_ERR_CORRUPTION;
 
     evfs_off_t chunk_size = evfs_file_size(rs->base.active_chunk_fh);
-    int delete_chunks = 0;
+    int delete_chunks;
 
     if(delete_bytes >= chunk_size)
       delete_chunks = 1 + (delete_bytes - chunk_size) / rs->cfg.chunk_size;
@@ -1105,15 +1043,15 @@ static int rotate__file_truncate(EvfsFile *fh, evfs_off_t size) {
 
     // Remove whole chunks
     while(delete_chunks) {
-      //end = end_chunk(rs);
-
       status = evict_chunk(base_vfs, &rs->base, rs->end_chunk, &chunk_size);
       if(status != EVFS_OK)
         break;
 
-      rs->end_chunk--;
-      if(rs->end_chunk < 0)
-        rs->end_chunk = rs->cfg.max_chunks;
+      rs->end_chunk.chunk--;
+      if(rs->end_chunk.chunk < 0) {
+        rs->end_chunk.chunk = rs->cfg.max_chunks - 1;
+        rs->end_chunk.gen = 1 - rs->end_chunk.gen;
+      }
 
       delete_bytes -= chunk_size;
       delete_chunks--;
@@ -1137,8 +1075,8 @@ static int rotate__file_truncate(EvfsFile *fh, evfs_off_t size) {
     }
 
     if(rs->base.total_size == 0) { // Restart chunk sequence
-      rs->start_chunk = 1;
-      rs->end_chunk = 0;
+      rs->start_chunk = (ChunkId){0,0};
+      rs->end_chunk = (ChunkId){0,0};
     }
 
     // Adjust position
@@ -1191,7 +1129,6 @@ static evfs_off_t rotate__file_size(EvfsFile *fh) {
 
 static int rotate__file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin) {
   RotateFile *fil = (RotateFile *)fh;
-  //RotateData *shim_data = fil->shim_data;
   
   int status = EVFS_OK;
 

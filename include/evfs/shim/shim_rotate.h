@@ -14,7 +14,6 @@ typedef struct RotateConfig_s {
   // Total capacity = max_chunks * chunk_size
   uint32_t      chunk_size;     // Must be at least MULTIPART_MIN_CHUNK_SIZE (32)
   uint32_t      max_chunks;     // Must be between 2 and MULTIPART_MAX_CHUNK (99999)
-  bool          repair_corrupt; // Repair invalid containers by removing chunks
 } RotateConfig;
 
 #ifdef __cplusplus
