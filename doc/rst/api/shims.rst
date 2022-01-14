@@ -131,7 +131,6 @@ the file.
 
   * :c:texpr:`uint32_t` chunk_size     - Size of each chunk
   * :c:texpr:`uint32_t` max_chunks     - Maximum chunks in the file container
-  * :c:texpr:`bool`     repair_corrupt - Repair corrupted containers
 
 
 .. c:function:: int evfs_register_rotate(const char *vfs_name, const char *old_vfs_name, RotateConfig *cfg, bool default_vfs)
@@ -157,8 +156,7 @@ the file.
   // Log file will have 100 chunks of 50KiB for a max capacity of 5MiB.
   RotateConfig cfg = {
     .chunk_size = 50 * 1024,
-    .max_chunks = 100,
-    .repair_corrupt = true
+    .max_chunks = 100
   };
 
   evfs_register_stdio(/*default_vfs*/ true);
