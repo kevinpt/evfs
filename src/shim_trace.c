@@ -75,6 +75,17 @@ typedef struct TraceDir_s {
 #define TF(s)  (TRACE_PREFIX s TRACE_SUFFIX)
 
 
+// Set ANSI color to highlight file/dir names
+#ifdef EVFS_USE_ANSI_COLOR
+#  define  HL_FNS  A_BYLW
+#  define  HL_FNE  A_YLW
+#else
+#  define  HL_FNS
+#  define  HL_FNE
+#endif
+
+#define HL_NAME  HL_FNS "%s" HL_FNE
+
 
 static void trace_printf(TraceData *shim_data, const char *fmt, ...) {
   va_list args;
@@ -112,9 +123,9 @@ static int trace__file_ctrl(EvfsFile *fh, int cmd, void *arg) {
   TraceData *shim_data = fil->shim_data;
 
   if(evfs_cmd_name(cmd)[0] != '<')
-    trace_printf(shim_data, TP("%s.m_ctrl(%s, cmd=%s)"), shim_data->vfs_name, fil->filename, evfs_cmd_name(cmd));
+    trace_printf(shim_data, TP("%s.m_ctrl(" HL_NAME ", cmd=%s)"), shim_data->vfs_name, fil->filename, evfs_cmd_name(cmd));
   else // Unknown command; Report its value
-    trace_printf(shim_data, TP("%s.m_ctrl(%s, cmd=%d)"), shim_data->vfs_name, fil->filename, cmd);
+    trace_printf(shim_data, TP("%s.m_ctrl(" HL_NAME ", cmd=%d)"), shim_data->vfs_name, fil->filename, cmd);
 
   int status = fil->base_file->methods->m_ctrl(fil->base_file, cmd, arg);
   trace_print_result(shim_data, evfs_err_name(status), status);
@@ -127,7 +138,7 @@ static int trace__file_close(EvfsFile *fh) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_close(%s)"), shim_data->vfs_name, fil->filename);
+  trace_printf(shim_data, TP("%s.m_close(" HL_NAME ")"), shim_data->vfs_name, fil->filename);
   int status = fil->base_file->methods->m_close(fil->base_file);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -143,7 +154,7 @@ static ptrdiff_t trace__file_read(EvfsFile *fh, void *buf, size_t size) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_read(%s, size=%ld)"), shim_data->vfs_name, fil->filename, size);
+  trace_printf(shim_data, TP("%s.m_read(" HL_NAME ", size=%ld)"), shim_data->vfs_name, fil->filename, size);
   ptrdiff_t read = fil->base_file->methods->m_read(fil->base_file, buf, size);
   if(read >= 0)
     trace_printf(shim_data, TS(" -> %ld"), read);
@@ -158,7 +169,7 @@ static ptrdiff_t trace__file_write(EvfsFile *fh, const void *buf, size_t size) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_write(%s, size=%ld)"), shim_data->vfs_name, fil->filename, size);
+  trace_printf(shim_data, TP("%s.m_write(" HL_NAME ", size=%ld)"), shim_data->vfs_name, fil->filename, size);
   ptrdiff_t wrote = fil->base_file->methods->m_write(fil->base_file, buf, size);
   if(wrote >= 0)
     trace_printf(shim_data, TS(" -> %ld"), wrote);
@@ -173,7 +184,7 @@ static int trace__file_truncate(EvfsFile *fh, evfs_off_t size) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_truncate(%s, size=%ld)"), shim_data->vfs_name, fil->filename, size);
+  trace_printf(shim_data, TP("%s.m_truncate(" HL_NAME ", size=%ld)"), shim_data->vfs_name, fil->filename, size);
   int status = fil->base_file->methods->m_truncate(fil->base_file, size);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -185,7 +196,7 @@ static int trace__file_sync(EvfsFile *fh) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_sync(%s)"), shim_data->vfs_name, fil->filename);
+  trace_printf(shim_data, TP("%s.m_sync(" HL_NAME ")"), shim_data->vfs_name, fil->filename);
   int status = fil->base_file->methods->m_sync(fil->base_file);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -198,7 +209,7 @@ static evfs_off_t trace__file_size(EvfsFile *fh) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_size(%s)"), shim_data->vfs_name, fil->filename);
+  trace_printf(shim_data, TP("%s.m_size(" HL_NAME ")"), shim_data->vfs_name, fil->filename);
   evfs_off_t size = fil->base_file->methods->m_size(fil->base_file);
   trace_printf(shim_data, TS(" -> %d"), size);
 
@@ -218,7 +229,8 @@ static int trace__file_seek(EvfsFile *fh, evfs_off_t offset, EvfsSeekDir origin)
   default:            org_name = "<unknown>"; break;
   }
 
-  trace_printf(shim_data, TP("%s.m_seek(%s, offset=%ld, origin=%s)"), shim_data->vfs_name, fil->filename, offset, org_name);
+  trace_printf(shim_data, TP("%s.m_seek(" HL_NAME ", offset=%ld, origin=%s)"),
+               shim_data->vfs_name, fil->filename, offset, org_name);
   int status = fil->base_file->methods->m_seek(fil->base_file, offset, origin);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -230,7 +242,7 @@ static evfs_off_t trace__file_tell(EvfsFile *fh) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_tell(%s)"), shim_data->vfs_name, fil->filename);
+  trace_printf(shim_data, TP("%s.m_tell(" HL_NAME ")"), shim_data->vfs_name, fil->filename);
   evfs_off_t pos = fil->base_file->methods->m_tell(fil->base_file);
   trace_printf(shim_data, TS(" -> %d"), pos);
 
@@ -242,7 +254,7 @@ static bool trace__file_eof(EvfsFile *fh) {
   TraceFile *fil = (TraceFile *)fh;
   TraceData *shim_data = fil->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_eof(%s)"), shim_data->vfs_name, fil->filename);
+  trace_printf(shim_data, TP("%s.m_eof(" HL_NAME ")"), shim_data->vfs_name, fil->filename);
   bool eof = fil->base_file->methods->m_eof(fil->base_file);
   trace_printf(shim_data, TS(" -> %c"), eof ? 'T' : 'f');
 
@@ -272,7 +284,7 @@ static int trace__dir_close(EvfsDir *dh) {
   TraceDir *dir = (TraceDir *)dh;
   TraceData *shim_data = dir->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_dir_close(%s)"), shim_data->vfs_name, dir->filename);
+  trace_printf(shim_data, TP("%s.m_dir_close(" HL_NAME ")"), shim_data->vfs_name, dir->filename);
   int status = dir->base_dir->methods->m_close(dir->base_dir);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -287,7 +299,7 @@ static int trace__dir_read(EvfsDir *dh, EvfsInfo *info) {
   TraceDir *dir = (TraceDir *)dh;
   TraceData *shim_data = dir->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_dir_read(%s)"), shim_data->vfs_name, dir->filename);
+  trace_printf(shim_data, TP("%s.m_dir_read(" HL_NAME ")"), shim_data->vfs_name, dir->filename);
   int status = dir->base_dir->methods->m_read(dir->base_dir, info);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -298,7 +310,7 @@ static int trace__dir_rewind(EvfsDir *dh) {
   TraceDir *dir = (TraceDir *)dh;
   TraceData *shim_data = dir->shim_data;
 
-  trace_printf(shim_data, TP("%s.m_dir_rewind(%s)"), shim_data->vfs_name, dir->filename);
+  trace_printf(shim_data, TP("%s.m_dir_rewind(" HL_NAME ")"), shim_data->vfs_name, dir->filename);
   int status = dir->base_dir->methods->m_rewind(dir->base_dir);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -334,7 +346,7 @@ static int trace__open(Evfs *vfs, const char *path, EvfsFile *fh, int flags) {
 
   fil->base_file = (EvfsFile *)NEXT_OBJ(fil);  // We have two objects allocated together [TraceFile][<base VFS file size>]
 
-  trace_printf(shim_data, TP("%s.m_open(%s, flags=0x%02X)"), shim_data->vfs_name, fil->filename, flags);
+  trace_printf(shim_data, TP("%s.m_open(" HL_NAME ", flags=0x%02X)"), shim_data->vfs_name, fil->filename, flags);
   int status = base_vfs->m_open(base_vfs, path, fil->base_file, flags);
   trace_print_result(shim_data, evfs_err_name(status), status);
   
@@ -360,7 +372,7 @@ static int trace__stat(Evfs *vfs, const char *path, EvfsInfo *info) {
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_stat(%s)"), shim_data->vfs_name, path);
+  trace_printf(shim_data, TP("%s.m_stat(" HL_NAME ")"), shim_data->vfs_name, path);
   int status = base_vfs->m_stat(base_vfs, path, info);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -373,7 +385,7 @@ static int trace__delete(Evfs *vfs, const char *path) {
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_delete(%s)"), shim_data->vfs_name, path);
+  trace_printf(shim_data, TP("%s.m_delete(" HL_NAME ")"), shim_data->vfs_name, path);
   int status = base_vfs->m_delete(base_vfs, path);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -385,7 +397,7 @@ static int trace__rename(Evfs *vfs, const char *old_path, const char *new_path) 
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_rename(%s, %s)"), shim_data->vfs_name, old_path, new_path);
+  trace_printf(shim_data, TP("%s.m_rename(" HL_NAME ", " HL_NAME ")"), shim_data->vfs_name, old_path, new_path);
   int status = base_vfs->m_rename(base_vfs, old_path, new_path);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -397,7 +409,7 @@ static int trace__make_dir(Evfs *vfs, const char *path) {
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_make_dir(%s)"), shim_data->vfs_name, path);
+  trace_printf(shim_data, TP("%s.m_make_dir(" HL_NAME ")"), shim_data->vfs_name, path);
   int status = base_vfs->m_make_dir(base_vfs, path);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -421,7 +433,7 @@ static int trace__open_dir(Evfs *vfs, const char *path, EvfsDir *dh) {
 
   dir->base_dir = (EvfsDir *)NEXT_OBJ(dir);   // We have two objects allocated together [TraceDir][<base VFS dir size>]
 
-  trace_printf(shim_data, TP("%s.m_open_dir(%s)"), shim_data->vfs_name, dir->filename);
+  trace_printf(shim_data, TP("%s.m_open_dir(" HL_NAME ")"), shim_data->vfs_name, dir->filename);
   int status = base_vfs->m_open_dir(base_vfs, path, dir->base_dir);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -458,7 +470,7 @@ static int trace__set_cur_dir(Evfs *vfs, const char *path) {
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_set_cur_dir(%s)"), shim_data->vfs_name, path);
+  trace_printf(shim_data, TP("%s.m_set_cur_dir(" HL_NAME ")"), shim_data->vfs_name, path);
   int status = base_vfs->m_set_cur_dir(base_vfs, path);
   trace_print_result(shim_data, evfs_err_name(status), status);
 
@@ -479,7 +491,7 @@ static int trace__vfs_ctrl(Evfs *vfs, int cmd, void *arg) {
   }
 
   if(evfs_cmd_name(cmd)[0] != '<')
-    trace_printf(shim_data, TP("%s.m_vfs_ctrl(%s)"), shim_data->vfs_name, evfs_cmd_name(cmd));
+    trace_printf(shim_data, TP("%s.m_vfs_ctrl(" HL_NAME ")"), shim_data->vfs_name, evfs_cmd_name(cmd));
   else // Unknown command; Report its value
     trace_printf(shim_data, TP("%s.m_vfs_ctrl(%d)"), shim_data->vfs_name, cmd);
 
@@ -494,7 +506,8 @@ static bool trace__path_root_component(Evfs *vfs, const char *path, StringRange 
   TraceData *shim_data = (TraceData *)vfs->fs_data;
   Evfs *base_vfs = shim_data->base_vfs;
 
-  trace_printf(shim_data, TP("%s.m_path_root_component(%s)"), shim_data->vfs_name, path);
+  trace_printf(shim_data, TP("%s.m_path_root_component(" HL_NAME ")"),
+                             shim_data->vfs_name, path);
   bool is_absolute = base_vfs->m_path_root_component(base_vfs, path, root);
   trace_printf(shim_data, TS(" -> '%.*s' %s"), RANGE_FMT(root), is_absolute ? "absolute" : "relative");
 
