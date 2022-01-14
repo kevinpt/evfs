@@ -161,7 +161,6 @@ the file.</p>
 <ul class="simple">
 <li><p><span class="xref c c-texpr">uint32_t</span> chunk_size     - Size of each chunk</p></li>
 <li><p><span class="xref c c-texpr">uint32_t</span> max_chunks     - Maximum chunks in the file container</p></li>
-<li><p><span class="xref c c-texpr">bool</span>     repair_corrupt - Repair corrupted containers</p></li>
 </ul>
 </dd></dl>
 
@@ -192,8 +191,7 @@ int <code class="sig-name descname">evfs_register_rotate</code><span class="sig-
 <span class="c1">// Log file will have 100 chunks of 50KiB for a max capacity of 5MiB.</span>
 <span class="n">RotateConfig</span> <span class="n">cfg</span> <span class="o">=</span> <span class="p">{</span>
   <span class="p">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="mi">50</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>
-  <span class="p">.</span><span class="n">max_chunks</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
-  <span class="p">.</span><span class="n">repair_corrupt</span> <span class="o">=</span> <span class="nb">true</span>
+  <span class="p">.</span><span class="n">max_chunks</span> <span class="o">=</span> <span class="mi">100</span>
 <span class="p">};</span>
 
 <span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
