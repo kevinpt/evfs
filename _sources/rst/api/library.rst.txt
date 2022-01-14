@@ -129,7 +129,7 @@ These info structs are returned by :c:func:`evfs_stat_ex` and :c:func:`evfs_dir_
 Directory listing
 -----------------
 
-Directories can be listed by opening a :c:type:`EVfsDir` with :c:func:`evfs_open_dir_ex`. The :ref:`directory access methods <dir-methods>` are then used to scan through the contents of a directory. :c:func:`evfs_dir_read` will return :c:macro:`EVFS_DONE` when there are no more entries to read in a directory.
+Directories can be listed by opening a :c:type:`EvfsDir` with :c:func:`evfs_open_dir_ex`. The :ref:`directory access methods <dir-methods>` are then used to scan through the contents of a directory. :c:func:`evfs_dir_read` will return :c:macro:`EVFS_DONE` when there are no more entries to read in a directory.
 
 .. code-block:: c
 
