@@ -16,8 +16,8 @@ Embedded Virtual Filesystem
   through the shim. If it isn't default VFS or the underlying FS is accessed
   by name then the path restiction can be bypassed.
 
-  This can be used as a simplified way to perform operations using absolute
-  paths that map into a subdirectory.
+  The jail shim can be used as a simplified way to perform operations with
+  absolute paths that map into a subdirectory.
 ------------------------------------------------------------------------------
 */
 
@@ -29,6 +29,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 #include "evfs/shim/shim_jail.h"
+#include "bsd/string.h"
 
 
 // Shared buffer needs lock if threading is enabled
@@ -415,7 +416,7 @@ static int jail__set_cur_dir(Evfs *vfs, const char *path) {
     if(!evfs__vfs_existing_dir(vfs, path))
       return EVFS_ERR_NO_PATH;
 
-    strncpy(shim_data->cur_dir, path, sizeof(shim_data->cur_dir));
+    strlcpy(shim_data->cur_dir, path, sizeof(shim_data->cur_dir));
     shim_data->cur_dir[sizeof(shim_data->cur_dir)-1] = '\0';
 
   } else { // Path is relative: Join it to the existing directory

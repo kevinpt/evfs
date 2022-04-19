@@ -37,6 +37,7 @@ set(EVFS_LIB_SOURCE
   util/range_strings.c
   util/dhash.c
   util/search.c
+  util/bsd_string.c
   stdio_fs.c
   tar_iter.c
   tar_fs.c
@@ -83,6 +84,7 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(evfs

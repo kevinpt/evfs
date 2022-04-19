@@ -22,6 +22,7 @@ Embedded Virtual Filesystem
 #include "evfs.h"
 #include "evfs_internal.h"
 #include "evfs/shim/shim_trace.h"
+#include "bsd/string.h"
 
 
 // Access objects allocated in a single block of memory
@@ -338,10 +339,10 @@ static int trace__open(Evfs *vfs, const char *path, EvfsFile *fh, int flags) {
   if(path) {
     StringRange tail;
     evfs_path_basename(path, &tail);
-    strncpy(fil->filename, tail.start, COUNT_OF(fil->filename));
+    strlcpy(fil->filename, tail.start, COUNT_OF(fil->filename));
     fil->filename[COUNT_OF(fil->filename)-1] = '\0';
   } else {
-    strncpy(fil->filename, "<unknown>", COUNT_OF(fil->filename));
+    strlcpy(fil->filename, "<unknown>", COUNT_OF(fil->filename));
   }
 
   fil->base_file = (EvfsFile *)NEXT_OBJ(fil);  // We have two objects allocated together [TraceFile][<base VFS file size>]
@@ -425,10 +426,10 @@ static int trace__open_dir(Evfs *vfs, const char *path, EvfsDir *dh) {
   dir->shim_data = shim_data;
   //dir->filename = path ? path : "<unknown>";
   if(path) {
-    strncpy(dir->filename, path, COUNT_OF(dir->filename));
+    strlcpy(dir->filename, path, COUNT_OF(dir->filename));
     dir->filename[COUNT_OF(dir->filename)-1] = '\0';
   } else {
-    strncpy(dir->filename, "<unknown>", COUNT_OF(dir->filename));
+    strlcpy(dir->filename, "<unknown>", COUNT_OF(dir->filename));
   }
 
   dir->base_dir = (EvfsDir *)NEXT_OBJ(dir);   // We have two objects allocated together [TraceDir][<base VFS dir size>]
