@@ -92,15 +92,16 @@ Rotate
 ------
 
 The rotate shim implements virtual self-rotating files useful for logging data.
-Older file contents are gradually purged once the log file reaches its
-maximum size. 
+Older file content is gradually purged once the log file reaches its
+maximum size set when it is created.
+
 
 .. warning::
   Do not use this for important data. There are latent race
   conditions that can cause data loss.
 
 
-The virtual files are represented as a container directory in the underlying
+Virtual files are represented as a container directory in the underlying
 filesystem. When the container is accessed through this shim it will appear as a single
 continuous file of data. You can perform all normal file operations on an
 open file handle. Understand that as rotation happens the offsets of the
@@ -160,7 +161,7 @@ the file.
   };
 
   evfs_register_stdio(/*default_vfs*/ true);
-  evfs_register_jail("rotate", "stdio", &cfg, /*default_vfs*/ false);
+  evfs_register_rotate("rotate", "stdio", &cfg, /*default_vfs*/ false);
 
   // Open a container. This is a directory that appears to be a file
   EvfsFile *fh;

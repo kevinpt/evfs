@@ -126,14 +126,14 @@ int <code class="sig-name descname">evfs_register_jail</code><span class="sig-pa
 <div class="section" id="rotate">
 <h2>Rotate<a class="headerlink" href="#rotate" title="Permalink to this headline">¶</a></h2>
 <p>The rotate shim implements virtual self-rotating files useful for logging data.
-Older file contents are gradually purged once the log file reaches its
-maximum size.</p>
+Older file content is gradually purged once the log file reaches its
+maximum size set when it is created.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Do not use this for important data. There are latent race
 conditions that can cause data loss.</p>
 </div>
-<p>The virtual files are represented as a container directory in the underlying
+<p>Virtual files are represented as a container directory in the underlying
 filesystem. When the container is accessed through this shim it will appear as a single
 continuous file of data. You can perform all normal file operations on an
 open file handle. Understand that as rotation happens the offsets of the
@@ -195,7 +195,7 @@ int <code class="sig-name descname">evfs_register_rotate</code><span class="sig-
 <span class="p">};</span>
 
 <span class="n">evfs_register_stdio</span><span class="p">(</span><span class="cm">/*default_vfs*/</span> <span class="nb">true</span><span class="p">);</span>
-<span class="n">evfs_register_jail</span><span class="p">(</span><span class="s">&quot;rotate&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cfg</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">false</span><span class="p">);</span>
+<span class="n">evfs_register_rotate</span><span class="p">(</span><span class="s">&quot;rotate&quot;</span><span class="p">,</span> <span class="s">&quot;stdio&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cfg</span><span class="p">,</span> <span class="cm">/*default_vfs*/</span> <span class="nb">false</span><span class="p">);</span>
 
 <span class="c1">// Open a container. This is a directory that appears to be a file</span>
 <span class="n">EvfsFile</span> <span class="o">*</span><span class="n">fh</span><span class="p">;</span>
