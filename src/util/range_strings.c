@@ -439,6 +439,68 @@ int range_cat_char_no_nul(AppendRange *rng, char ch) {
 
 
 /*
+Concatenate an unsigned integer to a range
+
+This performs integer formatting on its own and is safe to use where printf()
+family functions would consume more stack than is available.
+
+Args:
+  rng:  Target string for value
+  n:    Positive integer to format into rng
+
+Returns:
+  Number of bytes written if positive
+  Number of bytes needed if negative
+*/
+int range_cat_uint(AppendRange *rng, uint32_t n) {
+  if(n == 0)
+    return range_cat_char(rng, '0');
+
+  char buf[10+1]; // log10(2^32) --> 10 digits max
+  char *pos = &buf[9];
+  buf[10] = '\0';
+
+  while(n) {
+    char digit = (char)(n % 10) + '0';
+    n /= 10;
+    *pos-- = digit;
+  }
+  pos++;
+
+  return range_cat_str(rng, pos);
+}
+
+
+/*
+Concatenate an integer to a range
+
+This performs integer formatting on its own and is safe to use where printf()
+family functions would consume more stack than is available.
+
+Args:
+  rng:  Target string for value
+  n:    Integer to format into rng
+
+Returns:
+  Number of bytes written if positive
+  Number of bytes needed if negative
+*/
+int range_cat_int(AppendRange *rng, int32_t n) {
+  int s_chars = 0;
+  if(n < 0) {
+    n = -n; // NOTE: Does not work with INT_MIN
+    s_chars = range_cat_char(rng, '-');
+  }
+
+  int n_chars = range_cat_uint(rng, n);
+  if(n_chars < 0 && s_chars > 0)
+    s_chars = -s_chars;
+
+  return s_chars + n_chars;
+}
+
+
+/*
 Concatenate an unsigned fixed point integer to a range
 
 Args:
@@ -575,19 +637,19 @@ Returns:
   Number of bytes needed if negative
 */
 int range_cat_fixed(AppendRange *rng, int value, unsigned scale, unsigned places) {
-  int status = 0;
+  int s_chars = 0;
 
   // Convert to positive and add '-' if value was negative
-
   if(value < 0) {
     value = -value; // NOTE: Does not work with INT_MIN
-    status = range_cat_char(rng, '-');
+    s_chars = range_cat_char(rng, '-');
   }
 
-  if(status >= 0)
-    status += range_cat_ufixed_padded(rng, (unsigned)value, scale, places, 0);
+  int n_chars = range_cat_ufixed_padded(rng, (unsigned)value, scale, places, 0);
+  if(n_chars < 0 && s_chars > 0)
+    s_chars = -s_chars;
 
-  return status;
+  return s_chars + n_chars;
 }
 
 
@@ -603,7 +665,7 @@ Args:
 void range_ltrim(StringRange *rng) {
   const char *pos = rng->start;
 
-  while(pos < rng->end && isspace(*pos))
+  while(pos < rng->end && isspace((unsigned char)*pos))
     pos++;
 
   rng->start = pos;
@@ -619,7 +681,7 @@ void range_rtrim(StringRange *rng) {
   const char *pos = rng->start + strnlen(rng->start, rng->end - rng->start)-1;
 
   while(pos >= rng->start) {
-    if(!isspace(*pos) && *pos != '\0')
+    if(!isspace((unsigned char)*pos) && *pos != '\0')
        break;
 
     pos--;
@@ -728,7 +790,7 @@ bool range_is_int(StringRange *rng) {
   const char *rpos = rng->start;
 
   while(rpos < rng->end) {
-    if(!isdigit(*rpos)) return false;
+    if(!isdigit((unsigned char)*rpos)) return false;
     rpos++;
   }
 

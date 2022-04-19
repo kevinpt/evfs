@@ -88,6 +88,8 @@ int range_cat_range_no_nul(AppendRange *rng, StringRange *src_rng);
 int range_cat_char(AppendRange *rng, char ch);
 int range_cat_char_no_nul(AppendRange *rng, char ch);
 
+int range_cat_uint(AppendRange *rng, uint32_t n);
+int range_cat_int(AppendRange *rng, int32_t n);
 int range_cat_ufixed_padded(AppendRange *rng, unsigned value, unsigned scale, unsigned places,
                             signed pad_digits);
 static inline int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned scale,

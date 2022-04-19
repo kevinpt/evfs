@@ -89,7 +89,7 @@ static bool fatfs__path_root_component(Evfs *vfs, const char *path, StringRange 
   // Handle DOS style drive paths
   const char *pos = path;
   
-  if(isalnum(*pos) && *(pos+1) == ':')
+  if(isalnum((unsigned char)*pos) && *(pos+1) == ':')
     pos += 2;
 
   int leading_seps = strspn(pos, EVFS_PATH_SEPS);
