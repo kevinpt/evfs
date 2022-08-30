@@ -36,6 +36,13 @@ for the bucket array size.
 
 #include <inttypes.h>
 
+// Use growth by doubling in powers of 2 rather than a configurable prime sequence.
+// This is meant for benchmark comparisons. The default prime modulus gives
+// equivalent performance with better control over memory consumption.
+
+//#define DH_USE_2X_GROWTH
+
+
 // Set the largest number of hash entries to support.
 // This is primarily to help 8 and 16-bit platforms use a smaller data type
 // for handling bucket indices.
@@ -96,7 +103,9 @@ typedef struct dhash {
   dhBucketIndex   num_buckets;
 
   dhBucketIndex   used_buckets; // Number of buckets in use
+#ifndef DH_USE_2X_GROWTH
   dhBucketIndex   prime_ix;     // Index into table or primes for bucket array sizes
+#endif
 
   // Configuration
   size_t          value_size;   // Bytes per entry value
@@ -162,6 +171,7 @@ void dh_dump(dhash *hash, HashVisitor print_item, void *ctx);
 void dh_foreach(dhash *hash, HashVisitor visitor, void *ctx);
 
 dhIKey dh_gen_hash_string(dhKey key);
+dhIKey dh_gen_hash_string_no_case(dhKey key);
 bool dh_equal_hash_keys_string(dhKey key1, dhKey key2, void *ctx);
 dhIKey dh_gen_hash_int(dhKey key);
 bool dh_equal_hash_keys_int(dhKey key1, dhKey key2, void *ctx);
