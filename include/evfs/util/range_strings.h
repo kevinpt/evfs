@@ -26,6 +26,7 @@ DEALINGS IN THE SOFTWARE.
 #define RANGE_STRINGS_H
 
 #include <stdio.h> // For FILE*
+#include <stdarg.h>
 
 
 #ifndef COUNT_OF
@@ -54,6 +55,7 @@ typedef struct {
 // In a printf() format string use the "%.*s" specifier and use this macro to generate the two arguments
 #define RANGE_FMT(rp) (int)range_size(rp), (rp)->start
 
+#define PRISR   ".*s"
 
 // ******************** Range initialization ********************
 
@@ -77,7 +79,9 @@ int range_copy_str(AppendRange *rng, const char *str, bool truncate);
 
 
 // ******************** Append operations ********************
+__attribute__((format(printf, 2, 3)))
 int range_cat_fmt(AppendRange *rng, const char *fmt, ...);
+int range_cat_vfmt(AppendRange *rng, const char *fmt, va_list args);
 
 int range_cat_str(AppendRange *rng, const char *str);
 int range_cat_str_no_nul(AppendRange *rng, const char *str);
@@ -96,13 +100,25 @@ static inline int range_cat_ufixed(AppendRange *rng, unsigned value, unsigned sc
                                    unsigned places) {
   return range_cat_ufixed_padded(rng, value, scale, places, 0);
 }
-int range_cat_fixed(AppendRange *rng, int value, unsigned scale, unsigned places);
+
+int range_cat_fixed_padded(AppendRange *rng, long value, unsigned fp_scale, int frac_places,
+                            signed pad_digits);
+
+static inline int range_cat_fixed(AppendRange *rng, long value, unsigned fp_scale,
+                                   int frac_places) {
+  return range_cat_fixed_padded(rng, value, fp_scale, frac_places, 0);
+}
+
+
+int range_pad_right(StringRange *rng, char pad);
 
 // ******************** Whitespace trimming ********************
 void range_ltrim(StringRange *rng);
 void range_rtrim(StringRange *rng);
 void range_trim(StringRange *rng);
 void range_terminate(AppendRange *rng);
+
+void range_set_len(StringRange *rng, size_t len);
 
 // ******************** Range output ********************
 void range_puts(StringRange *rng);

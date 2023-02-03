@@ -33,8 +33,16 @@ String globbing
 #ifndef GLOB_H
 #define GLOB_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 bool char_match(char ch, const char *match_set);
 bool glob_match(const char *pattern, const char *str, const char *dir_separators);
+bool is_glob(const char *str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // GLOB_H

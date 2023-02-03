@@ -35,7 +35,7 @@ String globbing
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "glob.h"
+#include "util/glob.h"
 
 
 /*
@@ -200,4 +200,16 @@ bool glob_match(const char *pattern, const char *str, const char *dir_separators
 }
 
 
+/*
+Test if a string is a glob patern
+
+Args:
+  str:  String to test
+
+Returns:
+  true when str is a glob pattern
+*/
+bool is_glob(const char *str) {
+  return strcspn(str, "*?[") != strlen(str);
+}
 

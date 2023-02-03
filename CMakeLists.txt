@@ -83,7 +83,6 @@ PUBLIC
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
   ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
@@ -107,7 +106,7 @@ PUBLIC
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(evfs_so
@@ -130,7 +129,7 @@ add_pc_executable(test_image
 
 target_include_directories(test_image
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
   ${CMAKE_CURRENT_SOURCE_DIR}/libraries/littlefs
   ${CMAKE_CURRENT_SOURCE_DIR}/libraries/fatfs/source
 )
@@ -153,7 +152,7 @@ add_pc_executable(test_rotate
 
 target_include_directories(test_rotate
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(test_rotate
@@ -173,7 +172,7 @@ add_pc_executable(test_jail
 
 target_include_directories(test_jail
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(test_jail
@@ -192,7 +191,7 @@ add_pc_executable(test_tar
 
 target_include_directories(test_tar
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(test_tar
@@ -213,7 +212,7 @@ add_pc_executable(test_romfs
 
 target_include_directories(test_romfs
 PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/evfs
 )
 
 target_link_libraries(test_romfs

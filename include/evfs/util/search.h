@@ -35,6 +35,9 @@ General purpose approximate search functions.
 
 typedef ptrdiff_t (*CompareNearFunc)(const void *pkey,const void *pentry);
 
+ptrdiff_t search_exact(const void *key, const void *base, size_t num, size_t item_size,
+                       CompareNearFunc compare_near);
+
 size_t search_nearest(const void *key, const void *base, size_t num, size_t item_size,
                        CompareNearFunc compare_near);
 
@@ -58,7 +61,7 @@ argument for the comparison callback is not present.
 
 USAGE:
 
-  static inline int my_compare(const void *key, const void *item) {
+  static inline ptrdiff_t my_compare(const void *key, const void *item) {
     // Implement your item comparison
   }
 

@@ -220,7 +220,7 @@ static int tarfs__build_index(TarFileIterator *tar_it, EvfsTarIndex *ht) {
     key.length = 0;
     if(tar_it->cur_header.file_prefix[0] != '\0')
       key.length += range_cat_str(&keys_r, (char *)tar_it->cur_header.file_prefix);
-
+// FIXME: Add path sep
     key.length += range_cat_str(&keys_r, (char *)tar_it->cur_header.file_name);
     range_cat_char(&keys_r,'\0');
 

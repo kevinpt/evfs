@@ -54,10 +54,11 @@ Reference:
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <ctype.h>
 
-#include "dhash.h"
-#include "prime_modulus.h"
-#include "search.h"
+#include "util/dhash.h"
+#include "util/prime_modulus.h"
+#include "util/search.h"
 
 
 
@@ -130,7 +131,7 @@ typedef struct dhBucketEntry {
 
 
 // ******************** Prime modulus tables ********************
-
+#ifndef DH_USE_2X_GROWTH
 // List of primes we will use to size our dynamic array of buckets.
 // We use a truncated list if bucket index is only 16-bit.
 static dhBucketIndex s_prime_modulus[] = {
@@ -204,25 +205,92 @@ static const dhPMFunc s_prime_modulus_funcs[] = {
 #endif
 
 
-static inline dhBucketIndex get_fast_modulus(dhIKey k, dhBucketIndex prime_ix) {
-#ifdef DH_USE_MODULUS_FUNCS
-  dhPMFunc f = s_prime_modulus_funcs[prime_ix];
+#else
+// __builtin_clz() added in GCC 3.4 and Clang 5
+#if (defined __GNUC__ && __GNUC__ >= 4) || (defined __clang__ && __clang_major__ >= 5)
+#  define HAVE_BUILTIN_CLZ
+#endif
+
+#ifdef HAVE_BUILTIN_CLZ
+#  define clz(x)  __builtin_clz(x)
+#else
+// Count leading zeros
+// From Hacker's Delight 2nd ed. Fig 5-12. Modified to support 16-bit ints.
+static int clz(unsigned x) {
+  static_assert(sizeof(x) <= 4, "clz() only supports a 32-bit or 16-bit argument");
+  unsigned y;
+  int n = sizeof(x) * 8;
+
+  if(sizeof(x) > 2) { // 32-bit x
+    y = x >> 16; if(y) {n -= 16; x = y;}
+  }
+  y = x >> 8;  if(y) {n -= 8; x = y;}
+  y = x >> 4;  if(y) {n -= 4; x = y;}
+  y = x >> 2;  if(y) {n -= 2; x = y;}
+  y = x >> 1;  if(y) return n - 2;
+
+  return n - x;
+}
+#endif
+
+// From Hacker's Delight 2nd ed. p61
+static inline uint32_t next_po2(uint32_t x) {
+  return 1ul << (32 - clz(x - 1));
+}
+
+static inline uint32_t prev_po2(uint32_t x) {
+  return 1ul << (31 - clz(x));
+}
+
+
+#endif // !DH_USE_2X_GROWTH
+
+#if 0
+static inline dhBucketIndex get_fast_modulus(dhash *hash, dhIKey k) {
+#ifdef DH_USE_2X_GROWTH
+  return k & (hash->num_buckets-1);
+#else // Prime modulus
+#  ifdef DH_USE_MODULUS_FUNCS
+  dhPMFunc f = s_prime_modulus_funcs[hash->prime_ix];
   return f(k);
 
-#else
-  return k % s_prime_modulus[prime_ix];
+#  else
+  return k % s_prime_modulus[hash->prime_ix];
+#  endif
+#endif
+}
+#endif
+
+
+// Find the starting bucket for a probe sequence
+static inline dhBucketIndex dh__initial_probe(dhash *hash, dhIKey ikey) {
+#ifdef DH_USE_2X_GROWTH
+  return ikey & (hash->num_buckets-1);
+
+#else // Prime modulus
+#  ifdef DH_USE_MODULUS_FUNCS
+  dhPMFunc f = s_prime_modulus_funcs[hash->prime_ix];
+  return f(ikey);
+
+#  else
+  return ikey % s_prime_modulus[hash->prime_ix];
+#  endif
 #endif
 }
 
 
-static inline dhBucketIndex next_bucket(dhBucketIndex b, dhBucketIndex prime_ix) {
-  dhBucketIndex prime = s_prime_modulus[prime_ix];
+static inline dhBucketIndex next_bucket(dhash *hash, dhBucketIndex b) {
+#ifdef DH_USE_2X_GROWTH
+  return ++b & (hash->num_buckets-1);
+#else
+  dhBucketIndex prime = s_prime_modulus[hash->prime_ix];
 
   // Increment with wrap around
   if(++b >= prime)
     b -= prime;
 
   return b;
+#endif
 }
 
 
@@ -248,7 +316,11 @@ static inline dhBucketEntry *dh__get_entry(dhash *hash, dhBucketIndex b) {
 // Allocate new bucket array 
 static bool dh__alloc_buckets(dhash *hash, size_t new_num_buckets) {
 
-#define DH_MIN_BUCKETS   s_prime_modulus[0]
+#ifndef DH_USE_2X_GROWTH
+#  define DH_MIN_BUCKETS   s_prime_modulus[0]
+#else
+#  define DH_MIN_BUCKETS   4
+#endif
 
   new_num_buckets = MAX(new_num_buckets, (size_t)DH_MIN_BUCKETS);
 
@@ -274,10 +346,15 @@ static bool dh__alloc_buckets(dhash *hash, size_t new_num_buckets) {
 
 // Initialize or grow a hash table
 static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_hash) {
+#ifndef DH_USE_2X_GROWTH
   // Find closest prime to init_buckets
   dhBucketIndex prime_ix    = get_closest_prime_index(config->init_buckets);
   dhBucketIndex num_buckets = get_prime(prime_ix);
   //printf("## dh_init(): %d %zu --> %zu\n", prime_ix, config->init_buckets, num_buckets);
+#else
+  dhBucketIndex num_buckets = next_po2(config->init_buckets);
+  //printf("## dh_init(): 0x%X (%u) --> 0x%X\n", config->init_buckets, config->init_buckets, num_buckets);
+#endif
 
 
   // Bucket entries need to stay aligned so we pad out the value object
@@ -310,7 +387,9 @@ static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_h
     *hash = (dhash){
       .num_buckets  = 0,
       .used_buckets = 0,
+#ifndef DH_USE_2X_GROWTH
       .prime_ix     = prime_ix,
+#endif
       .value_size   = value_size,
       .max_storage  = config->max_storage,
       .ctx          = ctx,
@@ -329,8 +408,13 @@ static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_h
       size_t bucket_size = sizeof(dhBucketEntry) + value_size;
       size_t ext_buckets = config->max_storage / bucket_size;
 
+      // Set largest bucket count for our growth scheme
+#ifndef DH_USE_2X_GROWTH
       hash->prime_ix = get_closest_prime_index_below(ext_buckets);
       hash->num_buckets = get_prime(hash->prime_ix);
+#else
+      hash->num_buckets = prev_po2(ext_buckets);
+#endif
       hash->static_buckets = true;
 
       //printf("## EXT SIZE: %d  bsz: %d  num: %d\n", config->max_storage, bucket_size, ext_buckets);
@@ -347,7 +431,9 @@ static inline bool dh__init(dhash *hash, dhConfig *config, void *ctx, bool new_h
     if(hash->static_buckets || !dh__alloc_buckets(hash, num_buckets))
       return false;
 
+#ifndef DH_USE_2X_GROWTH
     hash->prime_ix    = prime_ix;
+#endif
     hash->num_buckets = num_buckets;
   }
 
@@ -450,7 +536,6 @@ Returns:
   Hashed value of key
 */
 dhIKey dh_gen_hash_string(dhKey key) {
-  //printf("HASH STR: %ld '%.*s'", key.length, (int)key.length, (char *)key.data);
   char *str = (char *)key.data;
   // djb2 xor hash
   dhIKey h = 5381;
@@ -460,7 +545,31 @@ dhIKey dh_gen_hash_string(dhKey key) {
     h = (h + (h << 5)) ^ str[key.length];
   }
 
-  //printf(" --> %08X\n", h);
+  return h;
+}
+
+
+/*
+Hash a string into an integer key using uppercasing
+
+This is a helper function that can be used as the gen_hash member in a
+dhConfig struct.
+
+Args:
+  key:  The key to be hashed
+
+Returns:
+  Hashed value of key
+*/
+dhIKey dh_gen_hash_string_no_case(dhKey key) {
+  char *str = (char *)key.data;
+  // djb2 xor hash
+  dhIKey h = 5381;
+
+  while(key.length) {
+    key.length--;
+    h = (h + (h << 5)) ^ toupper(str[key.length]);
+  }
 
   return h;
 }
@@ -480,6 +589,7 @@ Returns:
   true when keys are equal
 */
 bool dh_equal_hash_keys_string(dhKey key1, dhKey key2, void *ctx) {
+  (void)ctx;
   if(key1.length != key2.length) return false;
   return !strncmp(key1.data, key2.data, key1.length);
 }
@@ -522,21 +632,12 @@ Returns:
   true when keys are equal
 */
 bool dh_equal_hash_keys_int(dhKey key1, dhKey key2, void *ctx) {
+  (void)ctx;
   return (uintptr_t)key1.data == (uintptr_t)key2.data;
 }
 
 
 // ******************** Retrieval ********************
-
-// Find the starting bucket for a probe sequence
-static inline dhBucketIndex dh__initial_probe(dhash *hash, dhIKey ikey) {
-  // Take the modulus using current number of buckets
-  dhBucketIndex b = (dhBucketIndex)get_fast_modulus(ikey, hash->prime_ix);
-
-  //printf("## initial probe: cap: %ld  k %ld -> %d\n", hash->num_buckets, ikey, b);
-  return b;
-}
-
 
 
 // Search for a bucket with a given key
@@ -565,7 +666,7 @@ static inline dhBucketIndex dh__find_bucket(dhash *hash, dhKey key, dhBucketEntr
     } 
 
 
-    b = next_bucket(b, hash->prime_ix);
+    b = next_bucket(hash, b);
     entry = dh__get_entry_unsafe(hash, b);
     if(probes < MAX_PROBE_COUNT)
       probes++;
@@ -595,6 +696,7 @@ bool dh_lookup(dhash *hash, dhKey key, void *value) {
 
   dhBucketEntry *entry = NULL;
   dh__find_bucket(hash, key, &entry);
+  //dhBucketIndex b = dh__find_bucket(hash, key, &entry);
   //printf("## GOT BUCKET: %d\n", b);
 
   if(entry && !WAS_DELETED(entry)) { // Found match
@@ -741,7 +843,7 @@ static inline bool dh__insert_ex(dhash *hash, dhKey key, void *value, dhIKey ike
     }
 
     // Continue linear probe
-    b = next_bucket(b, hash->prime_ix);
+    b = next_bucket(hash, b);
     entry = dh__get_entry_unsafe(hash, b);
 
     if(probes < MAX_PROBE_COUNT)
