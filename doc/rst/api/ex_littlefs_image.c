@@ -45,7 +45,7 @@ int main() {
   // Add littlefs as default VFS
   evfs_register_littlefs("lfs", &lfs, /*default_vfs*/ true);
 
-  // Access the image like a normal fielsystem
+  // Access the image like a normal filesystem
 
   EvfsFile *fh;
   evfs_open("hello.txt", &fh, EVFS_WRITE | EVFS_OVERWRITE);
