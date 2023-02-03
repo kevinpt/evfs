@@ -351,6 +351,8 @@ static int stdio__stat(Evfs *vfs, const char *path, EvfsInfo *info) {
 
     if(S_ISDIR(s.st_mode))
       info->type |= EVFS_FILE_DIR;
+    if(S_ISLNK(s.st_mode))
+      info->type |= EVFS_FILE_SYM_LINK;
 
     return EVFS_OK;
   }

@@ -122,7 +122,8 @@ typedef struct EvfsInfo {
 } EvfsInfo;
 
 // EvfsInfo type flags
-#define EVFS_FILE_DIR          0x01
+#define EVFS_FILE_DIR         0x01
+#define EVFS_FILE_SYM_LINK    0x02
 
 
 // Virtual methods for directory objects
